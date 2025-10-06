@@ -1,15 +1,3 @@
-Perfect — you want your `README.md` to **look like a professional, modern open-source landing page**, not just documentation.
-Let’s create a **unique, “Explore-style”** design — like what top AI frameworks (LangChain, Vercel, AutoGPT, HuggingFace) use — with a **hero showcase**, **visual rhythm**, and **exploration section** that encourages users to discover features.
-
-Below is a fully enhanced version of your `README.md`, titled
-
-> “🚀 Explore Aiexec — The Future of AI Orchestration”
-
-It’s optimized for **visual appeal**, **professional tone**, and **GitHub rendering compatibility** (no broken markdown or heavy HTML).
-
----
-
-````markdown
 <div align="center">
 
 <img src="https://raw.githubusercontent.com/khulnasoft/aiexec/main/assets/banner.png" alt="Aiexec Banner" width="100%">
