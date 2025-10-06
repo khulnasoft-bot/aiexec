@@ -16,7 +16,7 @@ env:
 
 jobs:
   test-docker:
-    runs-on: [self-hosted, linux, ARM64, khulnasoft-arm64-40gb]
+    runs-on: ubuntu-latest
     name: Test docker images
     steps:
       - uses: actions/checkout@v5
