@@ -111,13 +111,13 @@ The exception to this pattern is the **Vectara RAG** component, which outputs on
 
 ### Vector store instances
 
-Because Aiexec is based on LangChain, **Vector Store** components use an instance of [LangChain vector store](https://python.langchain.com/docs/integrations/vectorstores/) to drive the underlying vector search functions.
+Because Aiexec is based on LangChain, **Vector Store** components use an instance of [LangChain vector store](https://docs.langchain.com/oss/python/integrations/vectorstores/) to drive the underlying vector search functions.
 In the component code, this is often instantiated as `vector_store`, but some components use a different name, such as the provider name.
 
 For the **Cassandra Graph** and **Astra DB Graph** components, `vector_store` is an instance of [LangChain graph vector store](https://python.langchain.com/api_reference/community/graph_vectorstores.html).
 
 These instances are provider-specific and configured according to the component's parameters.
-For example, the **Redis** component creates an instance of [`RedisVectorStore`](https://python.langchain.com/docs/integrations/vectorstores/redis/) based on the component's parameters, such as the connection string, index name, and schema.
+For example, the **Redis** component creates an instance of [`RedisVectorStore`](https://docs.langchain.com/oss/python/integrations/vectorstores/redis/) based on the component's parameters, such as the connection string, index name, and schema.
 
 Some LangChain classes don't expose all possible options as component parameters.
 Depending on the provider, these options might use default values or allow modification through environment variables, if they are supported in Aiexec.

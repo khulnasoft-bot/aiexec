@@ -47,13 +47,13 @@ The **IBM watsonx.ai** component can output either a **Model Response** ([`Messa
 Use the **Language Model** output when you want to use an IBM watsonx.ai model as the LLM for another LLM-driven component, such as an **Agent** or **Smart Function** component.
 For more information, see [**Language Model** components](/components-models).
 
-The `LanguageModel` output from the **IBM watsonx.ai** component is an instance of [ChatWatsonx](https://python.langchain.com/docs/integrations/chat/ibm_watsonx/) configured according to the [component's parameters](#ibm-watsonxai-parameters).
+The `LanguageModel` output from the **IBM watsonx.ai** component is an instance of [ChatWatsonx](https://docs.langchain.com/oss/python/integrations/chat/ibm_watsonx/) configured according to the [component's parameters](#ibm-watsonxai-parameters).
 
 ## IBM watsonx.ai Embeddings
 
 The **IBM watsonx.ai Embeddings** component uses the [supported foundation models](https://dataplatform.cloud.ibm.com/docs/content/wsj/analyze-data/fm-models.html?context=wx) in [IBM watsonx.ai](https://www.ibm.com/products/watsonx-ai) for embedding generation.
 
-The output is [`Embeddings`](/data-types#embeddings) generated with [`WatsonxEmbeddings`](https://python.langchain.com/docs/integrations/text_embedding/ibm_watsonx/).
+The output is [`Embeddings`](/data-types#embeddings) generated with [`WatsonxEmbeddings`](https://docs.langchain.com/oss/python/integrations/text_embedding/ibm_watsonx/).
 
 For more information about using embedding model components in flows, see [**Embedding Model** components](/components-embedding-models).
 
