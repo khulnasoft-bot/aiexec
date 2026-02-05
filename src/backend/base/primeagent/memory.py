@@ -15,11 +15,14 @@ else:
         from langchain_core.chat_history import BaseChatMessageHistory
         from langchain_core.messages import BaseMessage
     except ImportError:
+
         class BaseChatMessageHistory:
             pass
 
         class BaseMessage:
             pass
+
+
 from sqlmodel.ext.asyncio.session import AsyncSession
 from wfx.log.logger import logger
 from wfx.utils.async_helpers import run_until_complete

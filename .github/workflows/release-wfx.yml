@@ -137,7 +137,7 @@ jobs:
           prune-cache: false
 
       - name: Install WFX dependencies
-        run: uv sync --dev --package wfx
+        run: uv sync --frozen --dev --package wfx
 
       - name: Verify Version
         id: check-version

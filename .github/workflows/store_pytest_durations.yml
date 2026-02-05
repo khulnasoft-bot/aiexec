@@ -30,7 +30,7 @@ jobs:
           python-version: "3.13"
           prune-cache: false
       - name: Install the project
-        run: uv sync
+        run: uv sync --frozen
       - name: Run unit tests
         id: run_tests
         continue-on-error: true

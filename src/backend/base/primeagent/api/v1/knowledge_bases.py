@@ -2,11 +2,6 @@ import json
 import shutil
 from http import HTTPStatus
 from pathlib import Path
-
-import json
-import shutil
-from http import HTTPStatus
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, HTTPException
@@ -18,7 +13,6 @@ from primeagent.services.deps import get_settings_service
 
 if TYPE_CHECKING:
     import pandas as pd
-    from langchain_chroma import Chroma
 
 router = APIRouter(tags=["Knowledge Bases"], prefix="/knowledge_bases")
 
@@ -220,6 +214,7 @@ def calculate_text_metrics(df: "pd.DataFrame", text_columns: list[str]) -> tuple
 def get_kb_metadata(kb_path: Path) -> dict:
     import pandas as pd
     from langchain_chroma import Chroma
+
     """Extract metadata from a knowledge base directory."""
     metadata: dict[str, float | int | str] = {
         "chunks": 0,

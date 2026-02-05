@@ -335,7 +335,7 @@ jobs:
           prune-cache: false
 
       - name: Install Python Dependencies
-        run: uv sync --extra audio
+        run: uv sync --frozen --extra audio
 
       - name: Configure Environment Variables
         run: |

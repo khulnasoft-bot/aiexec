@@ -82,7 +82,7 @@ jobs:
           prune-cache: false
 
       - name: Install the project
-        run: uv sync
+        run: uv sync --frozen
 
       - name: Generate dynamic coverage configuration
         run: |
@@ -138,7 +138,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           prune-cache: false
       - name: Install the project
-        run: uv sync
+        run: uv sync --frozen
       - name: Run integration tests
         run: make integration_tests_no_api_keys
         env:

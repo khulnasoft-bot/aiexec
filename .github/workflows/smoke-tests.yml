@@ -39,7 +39,7 @@ jobs:
 
       - name: Install backend dependencies
         run: |
-          uv sync --dev
+          uv sync --frozen --dev
 
       - name: Run backend smoke tests (critical tests only)
         run: |
@@ -89,7 +89,7 @@ jobs:
       - name: Install wfx dependencies (isolated)
         run: |
           cd src/wfx
-          uv sync --dev
+          uv sync --frozen --dev
 
       - name: Run wfx smoke tests (critical tests only)
         run: |
@@ -157,11 +157,11 @@ jobs:
             const backendStatus = '${{ needs.backend-smoke-tests.result }}';
             const wfxStatus = '${{ needs.wfx-smoke-tests.result }}';
             const frontendStatus = '${{ needs.frontend-smoke-tests.result }}';
-            
+
             const overallSuccess = backendStatus === 'success' && wfxStatus === 'success' && frontendStatus === 'success';
             const emoji = overallSuccess ? '✅' : '❌';
             const status = overallSuccess ? 'passed' : 'failed';
-            
+
             const backendEmoji = backendStatus === 'success' ? '✅' : '❌';
             const wfxEmoji = wfxStatus === 'success' ? '✅' : '❌';
             const frontendEmoji = frontendStatus === 'success' ? '✅' : '❌';
@@ -173,7 +173,7 @@ jobs:
             - ${backendEmoji} **Backend**: 11 essential test files (database, auth, API endpoints, flows, components)
             - ${wfxEmoji} **WFX**: Graph tests (primeagent execution) - runs in isolation
             - ${frontendEmoji} **Frontend**: Unit tests only (components, utilities)
-            
+
             **Coverage**: Core functionality without external dependencies
 
             View details in the [Actions tab](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).`;

@@ -174,7 +174,7 @@ jobs:
 
       - name: Install WFX dependencies
         if: steps.check-wfx.outputs.already_published == 'false'
-        run: uv sync --dev --package wfx
+        run: uv sync --frozen --dev --package wfx
 
       - name: Build WFX
         if: steps.check-wfx.outputs.already_published == 'false'
@@ -252,7 +252,7 @@ jobs:
           python-version: "3.13"
           prune-cache: false
       - name: Install the project
-        run: uv sync
+        run: uv sync --frozen
       - name: Check for dependency incompatibility
         run: uv pip check
       - name: Check Version
@@ -322,7 +322,7 @@ jobs:
           python-version: "3.13"
           prune-cache: false
       - name: Install the project
-        run: uv sync
+        run: uv sync --frozen
       - name: Check for dependency incompatibility
         run: uv pip check
 
@@ -403,7 +403,7 @@ jobs:
           python-version: "3.13"
           prune-cache: false
       - name: Install WFX dependencies
-        run: uv sync --dev --package wfx
+        run: uv sync --frozen --dev --package wfx
       - name: Check Version
         id: check-version
         run: |

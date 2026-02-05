@@ -70,7 +70,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           prune-cache: false
       - name: Install WFX dependencies
-        run: cd src/wfx && uv sync
+        run: cd src/wfx && uv sync --frozen
 
       - name: Verify Nightly Name and Version
         id: verify
@@ -136,7 +136,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           prune-cache: false
       - name: Install the project
-        run: uv sync
+        run: uv sync --frozen
 
       - name: Wait for PyPI Propagation
         if: inputs.build_wfx
@@ -217,7 +217,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           prune-cache: false
       - name: Install the project
-        run: uv sync
+        run: uv sync --frozen
 
       - name: Verify Nightly Name and Version
         id: verify

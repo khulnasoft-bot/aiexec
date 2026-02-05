@@ -37,7 +37,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           prune-cache: false
       - name: Install the project
-        run: uv sync
+        run: uv sync --frozen
       - name: Run Mypy
         run: |
           uv run mypy --namespace-packages -p "primeagent"

@@ -76,7 +76,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           prune-cache: false
       - name: Install the project
-        run: uv sync
+        run: uv sync --frozen
 
       - name: Generate main nightly tag
         id: generate_main_tag
