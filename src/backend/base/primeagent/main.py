@@ -19,14 +19,15 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi_pagination import add_pagination
 from filelock import FileLock
+from wfx.interface.utils import setup_llm_caching
+from wfx.log.logger import configure, logger
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from pydantic import PydanticDeprecatedSince20
 from pydantic_core import PydanticSerializationError
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
-from wfx.interface.utils import setup_llm_caching
-from wfx.log.logger import configure, logger
 
-from primeagent.api import health_check_router, log_router, router
+from primeagent.api import health_check_router, log_router
+from primeagent.api.router import router
 from primeagent.api.v1.mcp_projects import init_mcp_servers
 from primeagent.initial_setup.setup import (
     copy_profile_pictures,
@@ -37,6 +38,7 @@ from primeagent.initial_setup.setup import (
     sync_flows_from_fs,
 )
 from primeagent.middleware import ContentSizeLimitMiddleware
+from primeagent.plugin_routes import load_plugin_routes
 from primeagent.services.deps import (
     get_queue_service,
     get_service,
@@ -517,6 +519,9 @@ def create_app():
     app.include_router(health_check_router)
     app.include_router(log_router)
 
+    # Discover and register additional routers from plugins (primeagent.plugins entry-point)
+    load_plugin_routes(app)
+
     @app.exception_handler(Exception)
     async def exception_handler(_request: Request, exc: Exception):
         if isinstance(exc, HTTPException):
@@ -570,6 +575,15 @@ def setup_static_files(app: FastAPI, static_files_dir: Path) -> None:
 
     @app.exception_handler(404)
     async def custom_404_handler(_request, _exc):
+        # Return JSON for all API endpoints to prevent HTML responses
+        if _request.url.path.startswith("/api"):
+            # Extract detail from HTTPException if available
+            detail = _exc.detail if isinstance(_exc, HTTPException) else "Not Found"
+            return JSONResponse(
+                status_code=404,
+                content=detail if isinstance(detail, dict) else {"detail": detail},
+            )
+
         path = anyio.Path(static_files_dir) / "index.html"
 
         if not await path.exists():

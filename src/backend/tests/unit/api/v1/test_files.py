@@ -16,9 +16,9 @@ from primeagent.services.auth.utils import get_password_hash
 from primeagent.services.database.models.api_key.model import ApiKey
 from primeagent.services.database.models.flow.model import Flow, FlowCreate
 from primeagent.services.database.models.user.model import User, UserRead
+from wfx.services.deps import session_scope
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
-from wfx.services.deps import session_scope
 
 from tests.conftest import _delete_transactions_and_vertex_builds
 
@@ -138,7 +138,7 @@ async def files_client_fixture(
         app, db_path = await asyncio.to_thread(init_app)
 
         async with (
-            LifespanManager(app, startup_timeout=None, shutdown_timeout=None) as manager,
+            LifespanManager(app, startup_timeout=None, shutdown_timeout=60) as manager,
             AsyncClient(transport=ASGITransport(app=manager.app), base_url="http://testserver/") as client,
         ):
             yield client

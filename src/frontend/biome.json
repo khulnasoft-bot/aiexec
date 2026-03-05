@@ -73,7 +73,7 @@
         "noDuplicateElseIf": "error",
         "noDuplicateObjectKeys": "error",
         "noDuplicateParameters": "error",
-        "noExplicitAny": "warn",
+        "noExplicitAny": "error",
         "noFallthroughSwitchClause": "error",
         "noFunctionAssign": "error",
         "noGlobalAssign": "error",

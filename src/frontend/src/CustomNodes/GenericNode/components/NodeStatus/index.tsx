@@ -1,5 +1,4 @@
-import cn from "classnames"; // Assuming you have classnames installed
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { getSpecificClassFromBuildStatus } from "@/CustomNodes/helpers/get-class-from-build-status";
 import { mutateTemplate } from "@/CustomNodes/helpers/mutate-template";
@@ -9,7 +8,6 @@ import useValidationStatusString from "@/CustomNodes/hooks/use-validation-status
 import ShadTooltip from "@/components/common/shadTooltipComponent";
 import { Button } from "@/components/ui/button";
 import { ICON_STROKE_WIDTH } from "@/constants/constants";
-import type { EventDeliveryType } from "@/constants/enums";
 import { BuildStatus } from "@/constants/enums";
 import { usePostTemplateValue } from "@/controllers/API/queries/nodes/use-post-template-value";
 import { track } from "@/customization/utils/analytics";
@@ -19,106 +17,111 @@ import { useDarkStore } from "@/stores/darkStore";
 import useFlowStore from "@/stores/flowStore";
 import { useShortcutsStore } from "@/stores/shortcuts";
 import { useUtilityStore } from "@/stores/utilityStore";
-import type {
-  APIClassType,
-  InputFieldType,
-  VertexBuildTypeAPI,
-} from "@/types/api";
-import type { AllNodeType, NodeDataType } from "@/types/flow";
+import type { VertexBuildTypeAPI } from "@/types/api";
+import type { NodeDataType } from "@/types/flow";
+import { findLastNode } from "@/utils/reactflowUtils";
+import { classNames, cn } from "@/utils/utils";
+import IconComponent from "../../../../components/common/genericIconComponent";
+import BuildStatusDisplay from "./components/build-status-display";
+import { normalizeTimeString } from "./utils/format-run-time";
 
-interface NodeStatusProps {
-  nodeId: string;
-  data: NodeDataType;
-  nodeAuth?: { name?: string; auth_tooltip?: string };
-  showNodeStatus?: boolean;
-  showNode?: boolean;
-  display_name: string;
-  version?: string;
-  conditionSuccess?: boolean;
-  validationStatus: VertexBuildTypeAPI | null;
-  buildStatus?: BuildStatus;
-  isBuilding?: boolean;
-  isAuthenticated: boolean;
-  connectionLink: string;
-  apiKeyValue?: string;
-  eventDeliveryConfig?: EventDeliveryType;
-  isOutdated?: boolean;
-  isUserEdited?: boolean;
-  dismissAll?: boolean;
-  isBreakingChange?: boolean;
-  frozen?: boolean;
-  lastRunTime?: string | null;
-  selected?: boolean;
-  setNode: (
-    nodeId: string,
-    updater: AllNodeType | ((old: AllNodeType) => AllNodeType),
-    flag?: boolean,
-  ) => void;
-  normalizeTimeString: (duration: number) => string;
-  buildFlow: (opts: {
-    stopNodeId: string;
-    eventDelivery?: EventDeliveryType;
-  }) => void;
-  getValidationStatus: () => void;
-  IconComponent: React.ElementType;
-  pollingIntervalMs?: number;
-  pollingTimeoutMs?: number;
-}
-
+const POLLING_TIMEOUT = 21000;
 const POLLING_INTERVAL = 3000;
-const POLLING_TIMEOUT = 60000;
 
 export default function NodeStatus({
   nodeId,
-  data,
-  nodeAuth,
-  showNodeStatus = false,
-  showNode = true,
   display_name,
-  version,
-  conditionSuccess = false,
-  validationStatus,
+  selected,
+  setBorderColor,
+  frozen,
+  showNode,
+  data,
   buildStatus,
-  isBuilding = false,
-  isAuthenticated,
-  connectionLink,
-  apiKeyValue,
-  eventDeliveryConfig,
-  isOutdated = false,
-  isUserEdited = false,
-  dismissAll = false,
-  isBreakingChange = false,
-  frozen = false,
-  lastRunTime = null,
-  selected = false,
-  setNode,
-  normalizeTimeString,
-  buildFlow,
+  dismissAll,
+  isOutdated,
+  isUserEdited,
+  isBreakingChange,
   getValidationStatus,
-  IconComponent,
-  pollingIntervalMs = POLLING_INTERVAL,
-  pollingTimeoutMs = POLLING_TIMEOUT,
-}: NodeStatusProps) {
+}: {
+  nodeId: string;
+  display_name: string;
+  selected?: boolean;
+  setBorderColor: (color: string) => void;
+  frozen?: boolean;
+  showNode: boolean;
+  data: NodeDataType;
+  buildStatus: BuildStatus;
+  dismissAll: boolean;
+  isOutdated: boolean;
+  isUserEdited: boolean;
+  isBreakingChange: boolean;
+  getValidationStatus: (data) => VertexBuildTypeAPI | null;
+}) {
+  const nodeId_ = data.node?.flow?.data
+    ? (findLastNode(data.node?.flow.data!)?.id ?? nodeId)
+    : nodeId;
+  const [validationString, setValidationString] = useState<string>("");
+  const [validationStatus, setValidationStatus] =
+    useState<VertexBuildTypeAPI | null>(null);
+  const [isPolling, setIsPolling] = useState(false);
+
+  const nodeAuth = Object.values(data.node?.template ?? {}).find(
+    (value) => value.type === "auth",
+  );
+
+  const connectionLink = nodeAuth?.value;
+  const apiKeyValue = (data.node?.template as any)?.api_key?.value ?? "";
+  const isAuthenticated = nodeAuth?.value === "validated";
+
   const pollingInterval = useRef<NodeJS.Timeout | null>(null);
   const pollingTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  const [isPolling, setIsPolling] = useState(false);
-  const [validationString, setValidationString] = useState("");
-  const [validationStatusLocal, setValidationStatus] =
-    useState<VertexBuildTypeAPI | null>(validationStatus);
-  const [isHovered, setIsHovered] = useState(false);
-  const [_borderColor, setBorderColor] = useState<string>("");
+  const conditionSuccess =
+    buildStatus === BuildStatus.BUILT ||
+    (buildStatus !== BuildStatus.TO_BUILD && validationStatus?.valid);
 
-  const postTemplateValue = usePostTemplateValue();
+  const conditionError = buildStatus === BuildStatus.ERROR;
+  const conditionInactive = buildStatus === BuildStatus.INACTIVE;
 
-  // Start polling function
+  const showNodeStatus =
+    conditionSuccess || conditionError || conditionInactive;
+
+  const lastRunTime = useFlowStore(
+    (state) => state.flowBuildStatus[nodeId_]?.timestamp,
+  );
+  const iconStatus = useIconStatus(buildStatus);
+  const buildFlow = useFlowStore((state) => state.buildFlow);
+  const isBuilding = useFlowStore((state) => state.isBuilding);
+  const setNode = useFlowStore((state) => state.setNode);
+  const version = useDarkStore((state) => state.version);
+  const eventDeliveryConfig = useUtilityStore((state) => state.eventDelivery);
+  const setErrorData = useAlertStore((state) => state.setErrorData);
+  const setFlowPool = useFlowStore((state) => state.setFlowPool);
+
+  const postTemplateValue = usePostTemplateValue({
+    parameterId: nodeAuth?.name ?? "auth",
+    nodeId: nodeId,
+    node: data.node,
+  });
+
+  // Start polling when connection is initiated
   const startPolling = () => {
+    stopPolling();
     setIsPolling(true);
+
     mutateTemplate(
-      () => {
-        const updatedAuth = Object.values(data?.node?.template ?? {}).find(
-          (value: InputFieldType) => value?.type === "auth",
-        );
+      { validate: "" },
+      data.id,
+      data.node,
+      (newNode) => {
+        setNode(nodeId, (old) => ({
+          ...old,
+          data: { ...old.data, node: newNode },
+        }));
+
+        const updatedAuth = Object.values(newNode?.template ?? {}).find(
+          (value: any) => value?.type === "auth",
+        ) as any;
         const oauthUrl = updatedAuth?.value;
 
         if (
@@ -138,10 +141,10 @@ export default function NodeStatus({
             { validate: data.node?.template?.auth?.value || "" },
             data.id,
             data.node,
-            (newNode: APIClassType) => {
-              setNode(nodeId, (old: AllNodeType) => ({
+            (newNode) => {
+              setNode(nodeId, (old) => ({
                 ...old,
-                data: { ...old.data, node: newNode } as NodeDataType,
+                data: { ...old.data, node: newNode },
               }));
             },
             postTemplateValue,
@@ -150,41 +153,32 @@ export default function NodeStatus({
             () => {},
             data.node.tool_mode,
           );
-        }, pollingIntervalMs);
+        }, POLLING_INTERVAL);
 
         pollingTimeout.current = setTimeout(() => {
           stopPolling();
-        }, pollingTimeoutMs);
+        }, POLLING_TIMEOUT);
       },
       data.node.tool_mode,
     );
-  };
-
-  // Stop polling function
-  const stopPolling = () => {
-    setIsPolling(false);
-    if (pollingInterval.current) clearInterval(pollingInterval.current);
-    if (pollingTimeout.current) clearTimeout(pollingTimeout.current);
   };
 
   useEffect(() => {
     if (isAuthenticated) {
       stopPolling();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
-  // Disconnect handler
   const handleDisconnect = () => {
     setIsPolling(true);
     mutateTemplate(
       "disconnect",
       data.id,
       data.node,
-      (newNode: APIClassType) => {
-        setNode(nodeId, (old: AllNodeType) => ({
+      (newNode) => {
+        setNode(nodeId, (old) => ({
           ...old,
-          data: { ...old.data, node: newNode } as NodeDataType,
+          data: { ...old.data, node: newNode },
         }));
       },
       postTemplateValue,
@@ -197,35 +191,39 @@ export default function NodeStatus({
     );
   };
 
-  // Handler for running build with keyboard shortcut
-  const handlePlayWShortcut = () => {
+  const stopPolling = () => {
+    setIsPolling(false);
+
+    if (pollingInterval.current) clearInterval(pollingInterval.current);
+    if (pollingTimeout.current) clearTimeout(pollingTimeout.current);
+  };
+
+  function handlePlayWShortcut() {
     if (buildStatus === BuildStatus.BUILDING || isBuilding || !selected) return;
     setValidationStatus(null);
     buildFlow({
       stopNodeId: nodeId,
       eventDelivery: eventDeliveryConfig,
     });
-  };
+  }
 
-  const playShortcut = useShortcutsStore((state) => state.play);
+  const play = useShortcutsStore((state) => state.play);
   const flowPool = useFlowStore((state) => state.flowPool);
-
-  useHotkeys(playShortcut, handlePlayWShortcut, { preventDefault: true });
-  useValidationStatusString(validationStatusLocal, setValidationString);
+  useHotkeys(play, handlePlayWShortcut, { preventDefault: true });
+  useValidationStatusString(validationStatus, setValidationString);
   useUpdateValidationStatus(
-    nodeId,
+    nodeId_,
     flowPool,
     setValidationStatus,
     getValidationStatus,
   );
 
-  // Helper functions for CSS classes
-  const getBaseBorderClass = (selectedFlag: boolean) => {
+  const getBaseBorderClass = (selected) => {
     const className =
-      selectedFlag && !isBuilding
+      selected && !isBuilding
         ? " border ring-[0.75px] ring-muted-foreground border-muted-foreground hover:shadow-node"
         : "border ring-[0.5px] hover:shadow-node ring-border";
-    const frozenClass = selectedFlag ? "border-ring-frozen" : "border-frozen";
+    const frozenClass = selected ? "border-ring-frozen" : "border-frozen";
     const updateClass =
       isOutdated && !isUserEdited && !dismissAll && isBreakingChange
         ? "border-warning"
@@ -234,67 +232,69 @@ export default function NodeStatus({
   };
 
   const getNodeBorderClassName = (
-    selectedFlag: boolean | undefined,
-    buildStatusFlag: BuildStatus | undefined,
-    validationStatusFlag: VertexBuildTypeAPI | null,
+    selected: boolean | undefined,
+    buildStatus: BuildStatus | undefined,
+    validationStatus: VertexBuildTypeAPI | null,
   ) => {
     const specificClassFromBuildStatus = getSpecificClassFromBuildStatus(
-      buildStatusFlag,
-      validationStatusFlag,
+      buildStatus,
+      validationStatus,
       isBuilding,
     );
-    const baseBorderClass = getBaseBorderClass(selectedFlag ?? false);
-    return cn(baseBorderClass, specificClassFromBuildStatus);
+
+    const baseBorderClass = getBaseBorderClass(selected);
+    const names = classNames(baseBorderClass, specificClassFromBuildStatus);
+    return names;
   };
 
   useEffect(() => {
     setBorderColor(
-      getNodeBorderClassName(selected, buildStatus, validationStatusLocal),
+      getNodeBorderClassName(selected, buildStatus, validationStatus),
     );
   }, [
     selected,
     showNode,
     buildStatus,
-    validationStatusLocal,
+    validationStatus,
     isOutdated,
     isUserEdited,
     frozen,
     dismissAll,
   ]);
 
-  // Update node version after build completes
   useEffect(() => {
     if (buildStatus === BuildStatus.BUILT && !isBuilding) {
       setNode(
         nodeId,
-        (old: AllNodeType) => ({
-          ...old,
-          data: {
-            ...old.data,
-            node: {
-              ...(old.data as NodeDataType).node,
-              lf_version: version,
+        (old) => {
+          return {
+            ...old,
+            data: {
+              ...old.data,
+              node: {
+                ...old.data.node,
+                lf_version: version,
+              },
             },
-          } as NodeDataType,
-        }),
+          };
+        },
         false,
       );
     }
-  }, [buildStatus, isBuilding, nodeId, setNode, version]);
+  }, [buildStatus, isBuilding]);
+
+  const [isHovered, setIsHovered] = useState(false);
 
   const stopBuilding = useFlowStore((state) => state.stopBuilding);
-  const setFlowPool = useFlowStore((state) => state.setFlowPool);
 
-  // Run build button handler
   const handleClickRun = () => {
     setFlowPool({});
 
-    if (buildStatus === BuildStatus.BUILDING && isHovered) {
+    if (BuildStatus.BUILDING === buildStatus && isHovered) {
       stopBuilding();
       return;
     }
     if (buildStatus === BuildStatus.BUILDING || isBuilding) return;
-
     buildFlow({
       stopNodeId: nodeId,
       eventDelivery: eventDeliveryConfig,
@@ -302,31 +302,27 @@ export default function NodeStatus({
     track("Flow Build - Clicked", { stopNodeId: nodeId });
   };
 
-  // Icon name logic for run button
   const iconName =
-    buildStatus === BuildStatus.BUILDING
+    BuildStatus.BUILDING === buildStatus
       ? isHovered
         ? "Square"
         : "Loader2"
       : "Play";
 
-  // CSS classes for icon
   const iconClasses = cn(
     "h-3.5 w-3.5 transition-all group-hover/node:opacity-100",
     isHovered ? "text-foreground" : "text-muted-foreground",
-    buildStatus === BuildStatus.BUILDING &&
+    BuildStatus.BUILDING === buildStatus &&
       (isHovered ? "text-status-red" : "animate-spin"),
   );
 
-  // Tooltip content for run button
   const getTooltipContent = () => {
-    if (buildStatus === BuildStatus.BUILDING && isHovered) {
+    if (BuildStatus.BUILDING === buildStatus && isHovered) {
       return "Stop build";
     }
     return "Run component";
   };
 
-  // Connect button click handler
   const handleClickConnect = () => {
     if (connectionLink === "error") return;
     if (isAuthenticated) {
@@ -336,44 +332,49 @@ export default function NodeStatus({
     }
   };
 
-  // Connection button CSS classes
-  const getConnectionButtonClasses = (
-    connectionLinkFlag: string,
-    isAuthenticatedFlag: boolean,
-    isPollingFlag: boolean,
+  const getConnectionButtonClasses: (
+    connectionLink: string,
+    isAuthenticated: boolean,
+    isPolling: boolean,
+  ) => string = (
+    connectionLink: string,
+    isAuthenticated: boolean,
+    isPolling: boolean,
   ): string => {
     return cn(
       "nodrag button-run-bg group relative h-4 w-4 p-0.5 rounded-sm border border-accent-amber-foreground transition-colors hover:bg-accent-amber",
-      connectionLinkFlag === "error"
+      connectionLink === "error"
         ? "border-destructive text-destructive"
-        : isAuthenticatedFlag && !isPollingFlag
+        : isAuthenticated && !isPolling
           ? "border-accent-emerald-foreground hover:border-accent-amber-foreground"
           : "",
-      connectionLinkFlag === "" &&
+      connectionLink === "" &&
         (!apiKeyValue || apiKeyValue === "COMPOSIO_API_KEY") &&
         "cursor-not-allowed opacity-50",
     );
   };
 
-  // Connection icon CSS classes
-  const getConnectionIconClasses = (
-    connectionLinkFlag: string,
-    isAuthenticatedFlag: boolean,
-    isPollingFlag: boolean,
+  const getConnectionIconClasses: (
+    connectionLink: string,
+    isAuthenticated: boolean,
+    isPolling: boolean,
+  ) => string = (
+    connectionLink: string,
+    isAuthenticated: boolean,
+    isPolling: boolean,
   ): string => {
     return cn(
       "transition-opacity h-2.5 w-2.5",
-      connectionLinkFlag === "error"
+      connectionLink === "error"
         ? "text-destructive"
-        : isAuthenticatedFlag && !isPollingFlag
+        : isAuthenticated && !isPolling
           ? "text-accent-emerald-foreground"
           : "text-accent-amber-foreground",
-      isPollingFlag && "animate-spin",
-      isAuthenticatedFlag && !isPollingFlag ? "group-hover:opacity-0" : "",
+      isPolling && "animate-spin",
+      isAuthenticated && !isPolling ? "group-hover:opacity-0" : "",
     );
   };
 
-  // Test ID for connection button
   const getDataTestId = () => {
     if (isAuthenticated && !isPolling) {
       return `button_connected_${display_name.toLowerCase()}`;
@@ -383,8 +384,6 @@ export default function NodeStatus({
     }
     return `button_disconnected_${display_name.toLowerCase()}`;
   };
-
-  const iconStatus = useIconStatus(buildStatus, validationStatusLocal);
 
   return (
     <div className="flex shrink-0 items-center gap-2">
@@ -401,7 +400,7 @@ export default function NodeStatus({
               content={
                 <BuildStatusDisplay
                   buildStatus={buildStatus}
-                  validationStatus={validationStatusLocal}
+                  validationStatus={validationStatus}
                   validationString={validationString}
                   lastRunTime={lastRunTime}
                 />
@@ -409,18 +408,23 @@ export default function NodeStatus({
               side="bottom"
             >
               <div className="cursor-help">
-                {conditionSuccess && validationStatusLocal?.data?.duration ? (
+                {conditionSuccess && validationStatus?.data?.duration ? (
                   <div
                     className="flex rounded-sm px-1 font-mono text-xs text-accent-emerald-foreground transition-colors hover:bg-accent-emerald"
-                    data-testid={`node_duration_${display_name.toLowerCase()}`}
+                    data-testid={`node_duration_` + display_name.toLowerCase()}
                   >
                     <span>
-                      {normalizeTimeString(validationStatusLocal.data.duration)}
+                      {normalizeTimeString(validationStatus?.data?.duration)}
                     </span>
                   </div>
                 ) : (
                   <div
-                    data-testid={`node_status_icon_${display_name.toLowerCase()}_${buildStatus?.toLowerCase()}`}
+                    data-testid={
+                      `node_status_icon_` +
+                      display_name.toLowerCase() +
+                      `_` +
+                      buildStatus?.toLowerCase()
+                    }
                     className="flex items-center self-center"
                   >
                     {iconStatus}
@@ -490,11 +494,9 @@ export default function NodeStatus({
             onMouseLeave={() => setIsHovered(false)}
             onClick={handleClickRun}
             className="-m-0.5"
-            role="button"
-            tabIndex={0}
           >
             <Button unstyled className="nodrag button-run-bg group">
-              <div data-testid={`button_run_${display_name.toLowerCase()}`}>
+              <div data-testid={`button_run_` + display_name.toLowerCase()}>
                 <IconComponent
                   name={iconName}
                   className={iconClasses}

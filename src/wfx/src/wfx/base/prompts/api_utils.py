@@ -8,6 +8,7 @@ from langchain_core.prompts.string import mustache_template_vars
 from wfx.inputs.inputs import DefaultPromptField
 from wfx.interface.utils import extract_input_variables_from_prompt
 from wfx.log.logger import logger
+from wfx.utils.mustache_security import validate_mustache_template
 
 _INVALID_CHARACTERS = {
     " ",
@@ -125,6 +126,10 @@ def _check_input_variables(input_variables):
 
 def validate_prompt(prompt_template: str, *, silent_errors: bool = False, is_mustache: bool = False) -> list[str]:
     if is_mustache:
+        # Validate that template doesn't contain complex mustache syntax
+        # This must happen before variable extraction to catch patterns like {{#section}}{{/section}}
+        validate_mustache_template(prompt_template)
+
         # Extract only mustache variables
         try:
             input_variables = mustache_template_vars(prompt_template)

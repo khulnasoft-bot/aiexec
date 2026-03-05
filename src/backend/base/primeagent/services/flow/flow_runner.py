@@ -4,20 +4,19 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 from aiofile import async_open
-from sqlmodel import delete, select, text
 from wfx.graph import Graph
 from wfx.graph.vertex.param_handler import ParameterHandler
 from wfx.log.logger import configure, logger
 from wfx.utils.util import update_settings
+from sqlmodel import delete, select, text
 
 from primeagent.api.utils import cascade_delete_flow
 from primeagent.load.utils import replace_tweaks_with_env
 from primeagent.processing.process import process_tweaks, run_graph
-from primeagent.services.auth.utils import get_password_hash
 from primeagent.services.cache.service import AsyncBaseCacheService
 from primeagent.services.database.models import Flow, User, Variable
 from primeagent.services.database.utils import initialize_database
-from primeagent.services.deps import get_cache_service, get_storage_service, session_scope
+from primeagent.services.deps import get_auth_service, get_cache_service, get_storage_service, session_scope
 
 
 class PrimeagentRunnerExperimental:
@@ -167,7 +166,8 @@ class PrimeagentRunnerExperimental:
     async def generate_user(self) -> User:
         async with session_scope() as session:
             user_id = str(uuid4())
-            user = User(id=user_id, username=user_id, password=get_password_hash(str(uuid4())), is_active=True)
+            hashed = get_auth_service().get_password_hash(str(uuid4()))
+            user = User(id=user_id, username=user_id, password=hashed, is_active=True)
             session.add(user)
             await session.flush()
             await session.refresh(user)

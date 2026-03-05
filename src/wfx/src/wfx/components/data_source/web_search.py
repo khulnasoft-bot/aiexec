@@ -21,7 +21,7 @@ from wfx.utils.request_utils import get_user_agent
 class WebSearchComponent(Component):
     display_name = "Web Search"
     description = "Search the web, news, or RSS feeds."
-    documentation: str = "https://docs-primeagent.khulnasoft.com/web-search"
+    documentation: str = "https://docs.prime.khulnasoft.com/web-search"
     icon = "search"
     name = "UnifiedWebSearch"
 

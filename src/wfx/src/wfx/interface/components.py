@@ -147,10 +147,10 @@ def _read_component_index(custom_path: str | None = None) -> dict | None:
             )
             return None
 
-        # Version check: ensure index matches installed primeagent version
+        # Version check: ensure index matches installed wfx version
         from importlib.metadata import version
 
-        installed_version = version("primeagent")
+        installed_version = version("wfx")
         if blob.get("version") != installed_version:
             logger.debug(
                 f"Component index version mismatch: index={blob.get('version')}, installed={installed_version}"

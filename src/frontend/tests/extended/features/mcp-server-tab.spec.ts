@@ -185,7 +185,7 @@ test(
 
       expect(
         hasApiKeyGenerated ||
-          !(await page.getByText("Generate API key").isVisible()),
+        !(await page.getByText("Generate API key").isVisible()),
       ).toBeTruthy();
     }
 
@@ -227,29 +227,23 @@ test(
     await expect(page.getByText("setup guide")).toBeVisible();
     await expect(page.getByText("setup guide")).toHaveAttribute(
       "href",
-      "https://docs-primeagent.khulnasoft.com/mcp-server#connect-clients-to-use-the-servers-actions",
+      "https://docs.prime.khulnasoft.com/mcp-server#connect-clients-to-use-the-servers-actions",
     );
 
     await awaitBootstrapTest(page);
 
     // Create a new flow with MCP component
     await page.getByTestId("blank-flow").click();
-    await page.getByTestId("sidebar-search-input").click();
-    await page.getByTestId("sidebar-search-input").fill("mcp");
-
-    await page.waitForSelector('[data-testid="models_and_agentsMCP Tools"]', {
-      timeout: 30000,
-    });
-
-    await page
-      .getByTestId("models_and_agentsMCP Tools")
-      .dragTo(page.locator('//*[@id="react-flow-id"]'), {
-        targetPosition: { x: 50, y: 50 },
-      });
+    await page.getByTestId("sidebar-nav-mcp").click();
+    await page.waitForSelector(
+      '[data-testid="add-component-button-lf-starter_project"]',
+      {
+        timeout: 30000,
+      },
+    );
+    await page.getByTestId("add-component-button-lf-starter_project").click();
 
     await adjustScreenView(page, { numberOfZoomOut: 3 });
-
-    await expect(page.getByTestId("dropdown_str_tool")).toBeHidden();
 
     await openAddMcpServerModal(page);
 

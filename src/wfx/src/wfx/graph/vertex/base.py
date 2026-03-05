@@ -10,10 +10,9 @@ from typing import TYPE_CHECKING, Any
 
 from ag_ui.core import StepFinishedEvent, StepStartedEvent
 
-from wfx.events.observability.lifecycle_events import observable
 from wfx.exceptions.component import ComponentBuildError
 from wfx.graph.schema import INPUT_COMPONENTS, OUTPUT_COMPONENTS, InterfaceComponentTypes, ResultData
-from wfx.graph.utils import UnbuiltObject, UnbuiltResult, log_transaction
+from wfx.graph.utils import UnbuiltObject, UnbuiltResult, emit_build_start_event, log_transaction
 from wfx.graph.vertex.param_handler import ParameterHandler
 from wfx.interface import initialize
 from wfx.interface.listing import lazy_load_dict
@@ -336,7 +335,8 @@ class Vertex:
             raise ValueError(msg)
 
         if self.updated_raw_params:
-            self.updated_raw_params = False
+            # Don't reset the flag - keep it True to protect against multiple build_params() calls
+            # The flag will be reset when _build_each_vertex_in_params_dict() processes the params
             return
 
         # Create parameter handler with lazy storage service initialization
@@ -384,7 +384,6 @@ class Vertex:
                 vertex=self,
             )
 
-    @observable
     async def _build(
         self,
         fallback_to_env_vars,
@@ -496,6 +495,10 @@ class Vertex:
                 )
             elif key not in self.params or self.updated_raw_params:
                 self.params[key] = value
+
+        # Reset the flag after processing raw_params
+        if self.updated_raw_params:
+            self.updated_raw_params = False
 
     async def _build_dict_and_update_params(
         self,
@@ -745,6 +748,11 @@ class Vertex:
                 # and we are just getting the result for the requester
                 return await self.get_requester_result(requester)
             self._reset()
+
+            # Emit build_start event for webhook real-time feedback
+            if self.graph and self.graph.flow_id:
+                await emit_build_start_event(self.graph.flow_id, self.id)
+
             # inject session_id if it is not None
             if inputs is not None and "session" in inputs and inputs["session"] is not None and self.has_session_id:
                 session_id_value = self.get_value_from_template_dict("session_id")

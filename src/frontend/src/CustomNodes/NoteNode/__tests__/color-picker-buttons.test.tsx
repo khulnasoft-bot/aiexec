@@ -8,12 +8,7 @@ import type { NoteDataType } from "@/types/flow";
 import { ColorPickerButtons } from "../components/color-picker-buttons";
 
 jest.mock("@/components/ui/button", () => ({
-  Button: ({
-    children,
-    onClick,
-    className,
-    ...props
-  }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+  Button: ({ children, onClick, className, ...props }: any) => (
     <button onClick={onClick} className={className} {...props}>
       {children}
     </button>
@@ -21,7 +16,7 @@ jest.mock("@/components/ui/button", () => ({
 }));
 
 jest.mock("@/utils/utils", () => ({
-  cn: (...classes: unknown[]) => classes.filter(Boolean).join(" "),
+  cn: (...classes: any[]) => classes.filter(Boolean).join(" "),
 }));
 
 describe("ColorPickerButtons", () => {

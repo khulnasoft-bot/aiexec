@@ -13,13 +13,23 @@ def update_pyproject_name(pyproject_path: str, new_project_name: str) -> None:
     filepath = BASE_DIR / pyproject_path
     content = filepath.read_text(encoding="utf-8")
 
-    # Regex to match the version line under [tool.poetry]
-    pattern = re.compile(r'(?<=^name = ")[^"]+(?=")', re.MULTILINE)
+    # Regex to match the name field only within the [project] section.
+    # This avoids replacing 'name' in other sections like [[tool.uv.index]].
+    # Pattern matches: [project] + any content (non-greedy) + name = "value"
+    pattern = re.compile(r'(\[project\]\s*\n(?:[^\[]*?))(name = ")[^"]+(")', re.DOTALL)
 
     if not pattern.search(content):
         msg = f'Project name not found in "{filepath}"'
         raise ValueError(msg)
-    content = pattern.sub(new_project_name, content)
+    content = pattern.sub(rf"\1\g<2>{new_project_name}\3", content)
+
+    # Update extra references in [complete] and [all] extras for nightly builds
+    if new_project_name == "primeagent-base-nightly":
+        # Replace primeagent-base[extra] with primeagent-base-nightly[extra] in optional dependencies
+        content = re.sub(r'"primeagent-base\[([^\]]+)\]"', r'"primeagent-base-nightly[\1]"', content)
+    elif new_project_name == "primeagent-nightly":
+        # Replace primeagent[extra] with primeagent-nightly[extra] in optional dependencies
+        content = re.sub(r'"primeagent\[([^\]]+)\]"', r'"primeagent-nightly[\1]"', content)
 
     filepath.write_text(content, encoding="utf-8")
 

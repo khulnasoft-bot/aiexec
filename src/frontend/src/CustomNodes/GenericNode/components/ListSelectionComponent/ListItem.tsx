@@ -3,25 +3,6 @@ import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/utils";
 
-interface ListItemProps {
-  item: {
-    id: string;
-    icon?: string;
-    name: string;
-    description?: string;
-    metaData?: string;
-    link?: string;
-  };
-  isSelected: boolean;
-  onClick: () => void;
-  className?: string;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
-  isFocused: boolean;
-  isKeyboardNavActive: boolean;
-  dataTestId: string;
-}
-
 const ListItem = ({
   item,
   isSelected,
@@ -32,12 +13,21 @@ const ListItem = ({
   isFocused,
   isKeyboardNavActive,
   dataTestId,
-}: ListItemProps) => {
+}: {
+  item: any;
+  isSelected: boolean;
+  onClick: () => void;
+  className?: string;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+  isFocused: boolean;
+  isKeyboardNavActive: boolean;
+  dataTestId: string;
+}) => {
   const [isHovered, setIsHovered] = useState(false);
   const itemRef = useRef<HTMLButtonElement>(null);
-  const formattedIcon = item.icon
-    ? item.icon.charAt(0).toUpperCase() + item.icon.slice(1)
-    : "";
+  const formattedIcon =
+    item?.icon?.charAt(0).toUpperCase() + item?.icon?.slice(1);
 
   // Clear hover state when keyboard navigation is active
   useEffect(() => {

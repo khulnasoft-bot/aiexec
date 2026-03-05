@@ -1,1 +1,1 @@
-# Tracing service for wfx package
+"""Tracing service for wfx package - minimal implementation."""

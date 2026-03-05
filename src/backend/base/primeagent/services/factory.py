@@ -94,8 +94,10 @@ def import_all_services_into_a_dict():
             logger.exception(exc)
             msg = "Could not initialize services. Please check your settings."
             raise RuntimeError(msg) from exc
-    # Import settings service from wfx
+    # Import settings and auth base from wfx (used in type hints but not primeagent Service subclasses)
+    from wfx.services.auth.base import BaseAuthService
     from wfx.services.settings.service import SettingsService
 
+    services["BaseAuthService"] = BaseAuthService
     services["SettingsService"] = SettingsService
     return services

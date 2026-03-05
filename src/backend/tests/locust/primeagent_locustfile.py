@@ -46,7 +46,7 @@ TEST_MESSAGES = {
     "medium": "I need help understanding how machine learning works in this context.",
     "complex": "Please analyze this data: " + "x" * 500 + " and provide detailed insights.",
     "large": "Here's a complex scenario: " + "data " * 1000,
-    "realistic": "Hey, Could you check https://docs-primeagent.khulnasoft.com for me? Later, could you calculate 1390 / 192 ?",
+    "realistic": "Hey, Could you check https://docs.prime.khulnasoft.com for me? Later, could you calculate 1390 / 192 ?",
 }
 
 # Weighted message distribution for realistic load
@@ -82,12 +82,7 @@ def setup_error_logging():
     error_logger.addHandler(error_handler)
 
     # Try to capture Primeagent logs
-    primeagent_log_paths = [
-        "primeagent.log",
-        "logs/primeagent.log",
-        "../../../primeagent.log",
-        "../../../../primeagent.log",
-    ]
+    primeagent_log_paths = ["primeagent.log", "logs/primeagent.log", "../../../primeagent.log", "../../../../primeagent.log"]
 
     for log_path in primeagent_log_paths:
         if Path(log_path).exists():

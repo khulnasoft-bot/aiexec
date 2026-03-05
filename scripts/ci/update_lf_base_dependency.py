@@ -15,14 +15,20 @@ def update_base_dep(pyproject_path: str, new_version: str) -> None:
     filepath = BASE_DIR / pyproject_path
     content = filepath.read_text(encoding="utf-8")
 
-    # Updated pattern to handle PEP 440 version suffixes and both ~= and == version specifiers
-    pattern = re.compile(r'("primeagent-base(?:~=|==)[\d.]+(?:\.(?:post|dev|a|b|rc)\d+)*")')
-    replacement = f'"primeagent-base-nightly=={new_version}"'
+    # Updated pattern to handle PEP 440 version suffixes, extras (e.g., [complete]),
+    # both ~= and == version specifiers, and both primeagent-base and primeagent-base-nightly names
+    # Captures extras in group 2 to preserve them in the replacement
+    pattern = re.compile(r'("primeagent-base(?:-nightly)?((?:\[[^\]]+\])?)(?:~=|==)[\d.]+(?:\.(?:post|dev|a|b|rc)\d+)*")')
 
     # Check if the pattern is found
-    if not pattern.search(content):
+    match = pattern.search(content)
+    if not match:
         msg = f'primeagent-base dependency not found in "{filepath}"'
         raise ValueError(msg)
+
+    # Extract extras if present (e.g., "[complete]")
+    extras = match.group(2) if match.group(2) else ""
+    replacement = f'"primeagent-base-nightly{extras}=={new_version}"'
 
     # Replace the matched pattern with the new one
     content = pattern.sub(replacement, content)
@@ -34,8 +40,9 @@ def update_wfx_dep_in_base(pyproject_path: str, wfx_version: str) -> None:
     filepath = BASE_DIR / pyproject_path
     content = filepath.read_text(encoding="utf-8")
 
-    # Updated pattern to handle PEP 440 version suffixes and both ~= and == version specifiers
-    pattern = re.compile(r'("wfx(?:~=|==)[\d.]+(?:\.(?:post|dev|a|b|rc)\d+)*")')
+    # Updated pattern to handle PEP 440 version suffixes, both ~= and == version specifiers,
+    # and both wfx and wfx-nightly names
+    pattern = re.compile(r'("wfx(?:-nightly)?(?:~=|==)[\d.]+(?:\.(?:post|dev|a|b|rc)\d+)*")')
     replacement = f'"wfx-nightly=={wfx_version}"'
 
     # Check if the pattern is found

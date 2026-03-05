@@ -6,7 +6,7 @@ import toml  # type: ignore[import-untyped]
 
 from wfx.base.models.unified_models import (
     get_language_model_options,
-    get_model_classes,
+    get_model_class,
     update_model_options_in_build_config,
 )
 from wfx.custom.custom_component.component import Component
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 class BatchRunComponent(Component):
     display_name = "Batch Run"
     description = "Runs an LLM on each row of a DataFrame column. If no column is specified, all columns are used."
-    documentation: str = "https://docs-primeagent.khulnasoft.com/batch-run"
+    documentation: str = "https://docs.prime.khulnasoft.com/batch-run"
     icon = "List"
 
     inputs = [
@@ -144,10 +144,11 @@ class BatchRunComponent(Component):
             metadata = model_selection.get("metadata", {})
 
             # Get model class and parameters from metadata
-            model_class = get_model_classes().get(metadata.get("model_class"))
-            if model_class is None:
+            model_class_name = metadata.get("model_class")
+            if not model_class_name:
                 msg = f"No model class defined for {model_name}"
                 raise ValueError(msg)
+            model_class = get_model_class(model_class_name)
 
             api_key_param = metadata.get("api_key_param", "api_key")
             model_name_param = metadata.get("model_name_param", "model")

@@ -38,7 +38,7 @@ test.skip(
     await zoomOut(page, 2);
 
     await page.getByTestId("div-generic-node").click();
-    await page.getByTestId("code-button-modal").click();
+    await page.getByTestId("code-button-modal").last().click();
 
     const customCodeWithError = `
 # from primeagent.field_typing import Data
@@ -50,7 +50,7 @@ from primeagent.schema import Data
 class CustomComponent(Component):
     display_name = "Custom Component"
     description = "Use as a template to create your own component."
-    documentation: str = "https://docs-primeagent.khulnasoft.com/components-custom-components"
+    documentation: str = "https://docs.prime.khulnasoft.com/components-custom-components"
     icon = "custom_components"
     name = "CustomComponent"
 

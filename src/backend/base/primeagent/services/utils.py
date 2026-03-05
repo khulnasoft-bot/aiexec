@@ -3,13 +3,12 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
+from wfx.log.logger import logger
+from wfx.services.settings.constants import DEFAULT_SUPERUSER, DEFAULT_SUPERUSER_PASSWORD
 from sqlalchemy import delete
 from sqlalchemy import exc as sqlalchemy_exc
 from sqlmodel import col, select
-from wfx.log.logger import logger
-from wfx.services.settings.constants import DEFAULT_SUPERUSER, DEFAULT_SUPERUSER_PASSWORD
 
-from primeagent.services.auth.utils import create_super_user, verify_password
 from primeagent.services.cache.base import ExternalAsyncBaseCacheService
 from primeagent.services.cache.factory import CacheServiceFactory
 from primeagent.services.database.models.transactions.model import TransactionTable
@@ -17,11 +16,11 @@ from primeagent.services.database.models.vertex_builds.model import VertexBuildT
 from primeagent.services.database.utils import initialize_database
 from primeagent.services.schema import ServiceType
 
-from .deps import get_db_service, get_service, get_settings_service, session_scope
+from .deps import get_auth_service, get_db_service, get_service, get_settings_service, session_scope
 
 if TYPE_CHECKING:
-    from sqlmodel.ext.asyncio.session import AsyncSession
     from wfx.services.settings.manager import SettingsService
+    from sqlmodel.ext.asyncio.session import AsyncSession
 
 
 async def get_or_create_super_user(session: AsyncSession, username, password, is_default):
@@ -31,12 +30,13 @@ async def get_or_create_super_user(session: AsyncSession, username, password, is
     result = await session.exec(stmt)
     user = result.first()
 
+    auth = get_auth_service()
     if user and user.is_superuser:
         return None  # Superuser already exists
 
     if user and is_default:
         if user.is_superuser:
-            if verify_password(password, user.password):
+            if auth.verify_password(password, user.password):
                 return None
             # Superuser exists but password is incorrect
             # which means that the user has changed the
@@ -54,7 +54,7 @@ async def get_or_create_super_user(session: AsyncSession, username, password, is
         return None
 
     if user:
-        if verify_password(password, user.password):
+        if auth.verify_password(password, user.password):
             msg = "User with superuser credentials exists but is not a superuser."
             raise ValueError(msg)
         msg = "Incorrect superuser credentials"
@@ -64,7 +64,7 @@ async def get_or_create_super_user(session: AsyncSession, username, password, is
         logger.debug("Creating default superuser.")
     else:
         logger.debug("Creating superuser.")
-    return await create_super_user(username, password, db=session)
+    return await auth.create_super_user(username, password, db=session)
 
 
 async def setup_superuser(settings_service: SettingsService, session: AsyncSession) -> None:
@@ -221,12 +221,14 @@ def register_all_service_factories() -> None:
     """Register all available service factories with the service manager."""
     # Import all service factories
     from wfx.services.manager import get_service_manager
+    from wfx.services.schema import ServiceType
 
     service_manager = get_service_manager()
     from wfx.services.mcp_composer import factory as mcp_composer_factory
     from wfx.services.settings import factory as settings_factory
 
     from primeagent.services.auth import factory as auth_factory
+    from primeagent.services.auth.service import AuthService
     from primeagent.services.cache import factory as cache_factory
     from primeagent.services.chat import factory as chat_factory
     from primeagent.services.database import factory as database_factory
@@ -258,6 +260,8 @@ def register_all_service_factories() -> None:
     service_manager.register_factory(task_factory.TaskServiceFactory())
     service_manager.register_factory(store_factory.StoreServiceFactory())
     service_manager.register_factory(shared_component_cache_factory.SharedComponentCacheServiceFactory())
+    # Override WFX's no-op auth service with Primeagent's full JWT implementation
+    service_manager.register_service_class(ServiceType.AUTH_SERVICE, AuthService, override=True)
     service_manager.register_factory(auth_factory.AuthServiceFactory())
     service_manager.register_factory(mcp_composer_factory.MCPComposerServiceFactory())
     service_manager.set_factory_registered()
@@ -265,6 +269,10 @@ def register_all_service_factories() -> None:
 
 async def initialize_services(*, fix_migration: bool = False) -> None:
     """Initialize all the services needed."""
+    from primeagent.helpers.windows_postgres_helper import configure_windows_postgres_event_loop
+
+    configure_windows_postgres_event_loop(source="initialize_services")
+
     # Register all service factories first
     register_all_service_factories()
 

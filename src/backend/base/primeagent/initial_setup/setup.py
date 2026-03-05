@@ -19,10 +19,6 @@ import orjson
 import sqlalchemy as sa
 from aiofile import async_open
 from emoji import demojize, purely_emoji
-from sqlalchemy.exc import NoResultFound
-from sqlalchemy.orm import selectinload
-from sqlmodel import col, select
-from sqlmodel.ext.asyncio.session import AsyncSession
 from wfx.base.constants import (
     FIELD_FORMAT_ATTRIBUTES,
     NODE_FORMAT_ATTRIBUTES,
@@ -33,6 +29,10 @@ from wfx.base.constants import (
 from wfx.log.logger import logger
 from wfx.template.field.prompt import DEFAULT_PROMPT_INTUT_TYPES
 from wfx.utils.util import escape_json_dump
+from sqlalchemy.exc import NoResultFound
+from sqlalchemy.orm import selectinload
+from sqlmodel import col, select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from primeagent.initial_setup.constants import (
     ASSISTANT_FOLDER_DESCRIPTION,
@@ -40,7 +40,6 @@ from primeagent.initial_setup.constants import (
     STARTER_FOLDER_DESCRIPTION,
     STARTER_FOLDER_NAME,
 )
-from primeagent.services.auth.utils import create_super_user
 from primeagent.services.database.models.flow.model import Flow, FlowCreate
 from primeagent.services.database.models.folder.constants import (
     DEFAULT_FOLDER_DESCRIPTION,
@@ -48,7 +47,13 @@ from primeagent.services.database.models.folder.constants import (
     LEGACY_FOLDER_NAMES,
 )
 from primeagent.services.database.models.folder.model import Folder, FolderCreate, FolderRead
-from primeagent.services.deps import get_settings_service, get_storage_service, get_variable_service, session_scope
+from primeagent.services.deps import (
+    get_auth_service,
+    get_settings_service,
+    get_storage_service,
+    get_variable_service,
+    session_scope,
+)
 
 # In the folder ./starter_projects we have a few JSON files that represent
 # starter projects. We want to load these into the database so that users
@@ -534,8 +539,7 @@ async def load_starter_projects(retries=3, delay=1) -> list[tuple[anyio.Path, di
     async for file in folder.glob("*.json"):
         attempt = 0
         while attempt < retries:
-            async with async_open(str(file), "r", encoding="utf-8") as f:
-                content = await f.read()
+            content = await file.read_text(encoding="utf-8")
             try:
                 project = orjson.loads(content)
                 starter_projects.append((file, project))
@@ -1196,7 +1200,7 @@ async def initialize_auto_login_default_superuser() -> None:
         raise ValueError(msg)
 
     async with session_scope() as async_session:
-        super_user = await create_super_user(db=async_session, username=username, password=password)
+        super_user = await get_auth_service().create_super_user(username, password, db=async_session)
         await get_variable_service().initialize_user_variables(super_user.id, async_session)
         # Initialize agentic variables if agentic experience is enabled
         from primeagent.api.utils.mcp.agentic_mcp import initialize_agentic_user_variables

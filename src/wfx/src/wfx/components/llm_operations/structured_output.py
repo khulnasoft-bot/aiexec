@@ -26,7 +26,7 @@ from wfx.schema.table import EditMode
 class StructuredOutputComponent(Component):
     display_name = "Structured Output"
     description = "Uses an LLM to generate structured data. Ideal for extraction and consistency."
-    documentation: str = "https://docs-primeagent.khulnasoft.com/structured-output"
+    documentation: str = "https://docs.prime.khulnasoft.com/structured-output"
     name = "StructuredOutput"
     icon = "braces"
 

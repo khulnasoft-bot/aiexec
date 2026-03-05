@@ -27,35 +27,27 @@ jobs:
           ref: ${{ inputs.branch || github.ref }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         id: setup-node
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - uses: pnpm/action-setup@v4
-        name: Install pnpm
+      - name: Cache Node.js dependencies
+        uses: actions/cache@v5
+        id: npm-cache
         with:
-          run_install: false
-
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-      - uses: actions/cache@v4
-        name: Setup pnpm cache
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('src/frontend/pnpm-lock.yaml') }}
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('src/frontend/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-pnpm-store-
+            ${{ runner.os }}-node-
 
       - name: Install Node.js dependencies
         run: |
           cd src/frontend
-          pnpm install --frozen-lockfile
+          npm install
+        if: ${{ steps.setup-node.outputs.cache-hit != 'true' }}
 
       - name: Run Biome
         run: |
           cd src/frontend
-          pnpm exec biome check --changed
+          npx @biomejs/biome check --changed

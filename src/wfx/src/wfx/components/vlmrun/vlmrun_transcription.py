@@ -1,7 +1,6 @@
 from pathlib import Path
 from urllib.parse import urlparse
 
-from loguru import logger
 from primeagent.custom.custom_component.component import Component
 from primeagent.io import (
     DropdownInput,
@@ -12,6 +11,7 @@ from primeagent.io import (
     SecretStrInput,
 )
 from primeagent.schema.data import Data
+from loguru import logger
 
 
 class VLMRunTranscription(Component):

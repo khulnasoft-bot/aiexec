@@ -18,11 +18,11 @@ import websockets
 from cryptography.fernet import InvalidToken
 from elevenlabs import ElevenLabs
 from fastapi import APIRouter, BackgroundTasks
+from wfx.log import logger
+from wfx.schema.schema import InputValueRequest
 from openai import OpenAI
 from sqlalchemy import select
 from starlette.websockets import WebSocket, WebSocketDisconnect
-from wfx.log import logger
-from wfx.schema.schema import InputValueRequest
 
 from primeagent.api.utils import CurrentActiveUser, DbSession
 from primeagent.api.v1.chat import build_flow_and_stream
@@ -35,7 +35,7 @@ from primeagent.services.database.models.user.model import User
 from primeagent.services.deps import get_variable_service, session_scope
 from primeagent.utils.voice_utils import BYTES_PER_24K_FRAME, VAD_SAMPLE_RATE_16K, resample_24k_to_16k
 
-router = APIRouter(prefix="/voice", tags=["Voice"])
+router = APIRouter(prefix="/voice", tags=["Voice"], include_in_schema=False)
 
 SILENCE_THRESHOLD = 0.1
 PREFIX_PADDING_MS = 100

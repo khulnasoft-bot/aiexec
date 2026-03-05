@@ -19,15 +19,15 @@ from primeagent.io import (
     StrInput,
     TableInput,
 )
-from pydantic import BaseModel
 from wfx.base.tools.component_tool import ComponentToolkit
 from wfx.schema import Data
+from pydantic import BaseModel
 
 
 class AllInputsComponent(Component):
     display_name = "All Inputs Component"
     description = "A component with all input types available in Primeagent."
-    documentation: str = "http://docs-primeagent.khulnasoft.com/components/all_inputs"
+    documentation: str = "http://docs.prime.khulnasoft.com/components/all_inputs"
     icon = "code"
     name = "AllInputsComponent"
 

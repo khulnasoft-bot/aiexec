@@ -16,7 +16,7 @@ from wfx.utils.constants import MESSAGE_SENDER_AI, MESSAGE_SENDER_NAME_AI, MESSA
 class MemoryComponent(Component):
     display_name = "Message History"
     description = "Stores or retrieves stored chat messages from Primeagent tables or an external memory."
-    documentation: str = "https://docs-primeagent.khulnasoft.com/message-history"
+    documentation: str = "https://docs.prime.khulnasoft.com/message-history"
     icon = "message-square-more"
     name = "Memory"
     default_keys = ["mode", "memory", "session_id", "context_id"]

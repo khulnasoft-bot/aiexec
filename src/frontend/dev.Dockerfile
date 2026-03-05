@@ -22,5 +22,5 @@ RUN chmod +x set_proxy.sh && \
 
 USER node
 
-RUN corepack enable && pnpm install --loglevel warn
-CMD ["pnpm", "run", "dev:docker"]
+RUN npm install --loglevel warn
+CMD ["npm", "run", "dev:docker"]

@@ -17,7 +17,9 @@ import typer
 from dotenv import load_dotenv
 from fastapi import HTTPException
 from httpx import HTTPError
-from jose import JWTError
+from jwt import InvalidTokenError
+from wfx.log.logger import configure, logger
+from wfx.services.settings.constants import DEFAULT_SUPERUSER, DEFAULT_SUPERUSER_PASSWORD
 from multiprocess import cpu_count
 from multiprocess.context import Process
 from packaging import version as pkg_version
@@ -26,19 +28,13 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from sqlmodel import select
-from wfx.log.logger import configure, logger
-from wfx.services.settings.constants import DEFAULT_SUPERUSER, DEFAULT_SUPERUSER_PASSWORD
 
 from primeagent.cli.progress import create_primeagent_progress
 from primeagent.initial_setup.setup import get_or_create_default_folder
 from primeagent.main import setup_app
-from primeagent.services.auth.utils import check_key, get_current_user_by_jwt
-from primeagent.services.deps import (
-    get_db_service,
-    get_settings_service,
-    is_settings_service_initialized,
-    session_scope,
-)
+from primeagent.services.auth.utils import get_current_user_from_access_token
+from primeagent.services.database.models.api_key.crud import check_key
+from primeagent.services.deps import get_db_service, get_settings_service, is_settings_service_initialized, session_scope
 from primeagent.services.utils import initialize_services
 from primeagent.utils.version import fetch_latest_version, get_version_info
 from primeagent.utils.version import is_pre_release as primeagent_is_pre_release
@@ -46,8 +42,7 @@ from primeagent.utils.version import is_pre_release as primeagent_is_pre_release
 app = typer.Typer(no_args_is_help=True)
 console = Console()
 if platform.system() == "Windows":
-    console = Console(legacy_windows=True, emoji=False)  # Initialize console with Windows-safe settings
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())  # type: ignore[attr-defined]
+    console = Console(legacy_windows=True, emoji=False)
 
 # Add WFX commands as a sub-app
 try:
@@ -373,7 +368,17 @@ def run(
             progress.print_summary()
             print_banner(str(host), int(port or 7860), protocol)
 
-        # Blocking call, so must be outside of the progress step
+        from primeagent.helpers.windows_postgres_helper import PRIMEAGENT_DATABASE_URL, POSTGRESQL_PREFIXES
+
+        db_url = os.environ.get(PRIMEAGENT_DATABASE_URL, "")
+        loop_type = "asyncio"
+        if (
+            platform.system() == "Windows"
+            and db_url
+            and any(db_url.startswith(prefix) for prefix in POSTGRESQL_PREFIXES)
+        ):
+            loop_type = "none"  # Preserve pre-configured WindowsSelectorEventLoopPolicy
+
         uvicorn.run(
             app,
             host=host,
@@ -381,7 +386,7 @@ def run(
             log_level=log_level,
             reload=False,
             workers=get_number_of_workers(workers),
-            loop="asyncio",
+            loop=loop_type,
         )
     else:
         with progress.step(6):
@@ -543,9 +548,7 @@ def build_version_notice(current_version: str, package_name: str) -> str:
         'A new version of primeagent is available: 1.1.0'
     """
     with suppress(httpx.ConnectError):
-        latest_version = fetch_latest_version(
-            package_name, include_prerelease=primeagent_is_pre_release(current_version)
-        )
+        latest_version = fetch_latest_version(package_name, include_prerelease=primeagent_is_pre_release(current_version))
         if latest_version and pkg_version.parse(current_version) < pkg_version.parse(latest_version):
             release_type = "pre-release" if primeagent_is_pre_release(latest_version) else "version"
             return f"A new {release_type} of {package_name} is available: {latest_version}"
@@ -742,8 +745,8 @@ async def _create_superuser(username: str, password: str, auth_token: str | None
                 # Try JWT first
                 user = None
                 try:
-                    user = await get_current_user_by_jwt(auth_token, session)
-                except (JWTError, HTTPException):
+                    user = await get_current_user_from_access_token(auth_token, session)
+                except (InvalidTokenError, HTTPException):
                     # Try API key
                     api_key_result = await check_key(session, auth_token)
                     if api_key_result and hasattr(api_key_result, "is_superuser"):
@@ -763,9 +766,10 @@ async def _create_superuser(username: str, password: str, auth_token: str | None
 
     # Auth complete, create the superuser
     async with session_scope() as session:
-        from primeagent.services.auth.utils import create_super_user
+        from primeagent.services.deps import get_auth_service
 
-        if await create_super_user(db=session, username=username, password=password):
+        auth = get_auth_service()
+        if await auth.create_super_user(username, password, db=session):
             # Verify that the superuser was created
             from primeagent.services.database.models.user.model import User
 

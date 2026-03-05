@@ -151,9 +151,9 @@ describe("AuthContext - Login Fix for Race Condition", () => {
       });
 
       // Track when setIsAuthenticated is called
-      let _authSetCallCount = 0;
+      let authSetCallCount = 0;
       mockSetIsAuthenticated.mockImplementation(() => {
-        _authSetCallCount++;
+        authSetCallCount++;
       });
 
       // Start login

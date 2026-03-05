@@ -2,15 +2,18 @@
 python:
   - "src/backend/**"
   - "src/backend/**.py"
+  - "src/wfx/**"
   - "pyproject.toml"
   - "uv.lock"
   - "src/backend/base/pyproject.toml"
   - "src/backend/base/uv.lock"
+  - "src/wfx/pyproject.toml"
   - "**/python_test.yml"
   - ".github/workflows/ci.yml"
   - "src/wfx/src/wfx/_assets/component_index.json"
 components-changes:
   - "src/backend/base/primeagent/components/**"
+  - "src/wfx/src/wfx/components/**"
   - "src/wfx/src/wfx/_assets/component_index.json"
 starter-projects-changes:
   - "src/backend/base/primeagent/initial_setup/**"
@@ -30,6 +33,7 @@ docker:
   - "pyproject.toml"
   - "src/backend/**"
   - "src/frontend/**"
+  - "src/wfx/**"
   - ".dockerignore"
   - ".github/workflows/docker_test.yml"
 
@@ -69,10 +73,15 @@ components:
   - "src/backend/base/primeagent/components/**"
   - "src/backend/base/primeagent/initial_setup/**"
   - "src/backend/base/primeagent/serialization/**"
+  - "src/wfx/src/wfx/components/**"
+  - "src/wfx/src/wfx/custom/**"
+  - "src/wfx/src/wfx/schema/**"
+  - "src/wfx/src/wfx/graph/**"
   - "src/wfx/src/wfx/_assets/component_index.json"
 
 workspace:
   - "src/backend/base/primeagent/inputs/**"
+  - "src/wfx/src/wfx/inputs/**"
   - "src/frontend/src/components/core/parameterRenderComponent/**"
   - "src/frontend/src/CustomNodes/**"
   - "src/frontend/src/modals/**"

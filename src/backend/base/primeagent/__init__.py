@@ -5,18 +5,15 @@ primeagent.* to wfx.* to maintain compatibility with existing code that
 references the old primeagent module structure.
 """
 
-import os
+from primeagent.helpers.windows_postgres_helper import configure_windows_postgres_event_loop
 
-# Memory guardrails
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["NUMEXPR_MAX_THREADS"] = "1"
+configure_windows_postgres_event_loop(source="package_init")
 
-import importlib
-import importlib.util
-import sys
-from types import ModuleType
-from typing import Any
+import importlib  # noqa: E402
+import importlib.util  # noqa: E402
+import sys  # noqa: E402
+from types import ModuleType  # noqa: E402
+from typing import Any  # noqa: E402
 
 
 class PrimeagentCompatibilityModule(ModuleType):

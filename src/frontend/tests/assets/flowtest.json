@@ -23,7 +23,7 @@
                 "list": false,
                 "show": true,
                 "multiline": true,
-                "value": "from wfx.custom import CustomComponent\nfrom wfx.field_typing import Data\nfrom pathlib import Path\nfrom platformdirs import user_cache_dir\nimport os\n\nclass Component(CustomComponent):\n    documentation: str = \"http://docs-primeagent.khulnasoft.com/components/custom\"\n\n    def build_config(self):\n        return {\"text_input\":{\"display_name\":\"Text Input\", \"input_types\":[\"str\"]},\"save_path\":{\"display_name\":\"Save Path\",\n        \"info\":\"Put the full path with the file name and extension\",\"value\":Path(user_cache_dir(\"primeagent\"))/\"text.t1.txt\"}}\n\n    def build(self, text_input:str,save_path:str) -> str:\n        try:\n            # Create the directory if it doesn't exist\n            os.makedirs(os.path.dirname(save_path), exist_ok=True)\n\n            # Open the file in write mode and save the text\n            with open(save_path, 'w') as file:\n                file.write(text_input)\n        except Exception as e:\n            raise e\n        self.status = text_input\n        return text_input",
+                "value": "from wfx.custom import CustomComponent\nfrom wfx.field_typing import Data\nfrom pathlib import Path\nfrom platformdirs import user_cache_dir\nimport os\n\nclass Component(CustomComponent):\n    documentation: str = \"http://docs.prime.khulnasoft.com/components/custom\"\n\n    def build_config(self):\n        return {\"text_input\":{\"display_name\":\"Text Input\", \"input_types\":[\"str\"]},\"save_path\":{\"display_name\":\"Save Path\",\n        \"info\":\"Put the full path with the file name and extension\",\"value\":Path(user_cache_dir(\"primeagent\"))/\"text.t1.txt\"}}\n\n    def build(self, text_input:str,save_path:str) -> str:\n        try:\n            # Create the directory if it doesn't exist\n            os.makedirs(os.path.dirname(save_path), exist_ok=True)\n\n            # Open the file in write mode and save the text\n            with open(save_path, 'w') as file:\n                file.write(text_input)\n        except Exception as e:\n            raise e\n        self.status = text_input\n        return text_input",
                 "fileTypes": [],
                 "file_path": "",
                 "password": false,
@@ -62,21 +62,27 @@
                 "name": "text_input",
                 "display_name": "Text Input",
                 "advanced": false,
-                "input_types": ["str"],
+                "input_types": [
+                  "str"
+                ],
                 "dynamic": false,
                 "info": "",
                 "value": ""
               },
               "_type": "CustomComponent"
             },
-            "base_classes": ["str"],
+            "base_classes": [
+              "str"
+            ],
             "display_name": "text checkpoint",
-            "documentation": "https://docs-primeagent.khulnasoft.com/components-custom-components",
+            "documentation": "https://docs.prime.khulnasoft.com/components-custom-components",
             "custom_fields": {
               "save_path": null,
               "text_input": null
             },
-            "output_types": ["str"],
+            "output_types": [
+              "str"
+            ],
             "field_formatters": {},
             "beta": true
           },
@@ -155,14 +161,18 @@
               "_type": "CustomComponent"
             },
             "description": "Converts audio to text using OpenAI's Whisper.",
-            "base_classes": ["str"],
+            "base_classes": [
+              "str"
+            ],
             "display_name": "Whisper Transcriber",
             "documentation": "",
             "custom_fields": {
               "OpenAIKey": null,
               "audio": null
             },
-            "output_types": ["str"],
+            "output_types": [
+              "str"
+            ],
             "field_formatters": {},
             "beta": true
           },
@@ -186,11 +196,15 @@
           "targetHandle": {
             "fieldName": "text_input",
             "id": "CustomComponent-MtJjl",
-            "inputTypes": ["str"],
+            "inputTypes": [
+              "str"
+            ],
             "type": "str"
           },
           "sourceHandle": {
-            "baseClasses": ["str"],
+            "baseClasses": [
+              "str"
+            ],
             "dataType": "CustomComponent",
             "id": "CustomComponent-7NQoq"
           }

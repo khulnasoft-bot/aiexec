@@ -41,8 +41,8 @@ jest.mock("@/components/common/genericIconComponent", () => ({
 jest.mock("@/constants/constants", () => ({
   __esModule: true,
   DATASTAX_DOCS_URL: "https://docs.datastax.com",
-  DOCS_URL: "https://docs-primeagent.khulnasoft.com",
-  DESKTOP_URL: "https://desktop.primeagent.khulnasoft.com",
+  DOCS_URL: "https://docs.prime.khulnasoft.com",
+  DESKTOP_URL: "https://desktop.prime.khulnasoft.com",
 }));
 
 jest.mock("@/customization/feature-flags", () => ({
@@ -94,13 +94,13 @@ describe("HelpDropdown", () => {
 
     render(
       <MemoryRouter>
-        <HelpDropdown isOpen={true} onOpenChange={() => {}} />
+        <HelpDropdown isOpen={true} onOpenChange={() => { }} />
       </MemoryRouter>,
     );
 
     fireEvent.click(screen.getByTestId("canvas_controls_dropdown_docs"));
     expect(window.open).toHaveBeenCalledWith(
-      "https://docs-primeagent.khulnasoft.com",
+      "https://docs.prime.khulnasoft.com",
       "_blank",
     );
 
@@ -111,7 +111,7 @@ describe("HelpDropdown", () => {
       screen.getByTestId("canvas_controls_dropdown_get_primeagent_desktop"),
     );
     expect(window.open).toHaveBeenCalledWith(
-      "https://desktop.primeagent.khulnasoft.com",
+      "https://desktop.prime.khulnasoft.com",
       "_blank",
     );
   });

@@ -17,7 +17,7 @@ from wfx.template.field.base import Output
 class LLMSelectorComponent(Component):
     display_name = "LLM Selector"
     description = "Routes the input to the most appropriate LLM based on OpenRouter model specifications"
-    documentation: str = "https://docs-primeagent.khulnasoft.com/llm-selector"
+    documentation: str = "https://docs.prime.khulnasoft.com/llm-selector"
     icon = "git-branch"
 
     # Constants for magic values
@@ -331,8 +331,7 @@ If no model seems suitable, pick the first model in the list (index 0) as a fall
 
                 model_specs_for_judge.append({"index": i, "primeagent_name": primeagent_model_name, "specs": spec_dict})
                 self.log(
-                    f"Prepared specs for Primeagent model {i} ('{primeagent_model_name}'): "
-                    f"{spec_dict.get('name', 'N/A')}"
+                    f"Prepared specs for Primeagent model {i} ('{primeagent_model_name}'): {spec_dict.get('name', 'N/A')}"
                 )
 
             estimated_tokens = len(self.input_value.split()) * 1.3
