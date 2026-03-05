@@ -15,8 +15,8 @@ from primeagent.services.auth.exceptions import (
 )
 from primeagent.services.auth.service import AuthService
 from primeagent.services.database.models.user.model import User
-from wfx.services.settings.auth import AuthSettings
 from pydantic import SecretStr
+from wfx.services.settings.auth import AuthSettings
 
 
 @pytest.fixture
@@ -56,7 +56,9 @@ async def test_get_current_user_from_access_token_returns_active_user(auth_servi
     token = auth_service.create_token({"sub": str(user_id), "type": "access"}, timedelta(minutes=5))
     fake_user = _dummy_user(user_id)
 
-    with patch("primeagent.services.auth.service.get_user_by_id", new=AsyncMock(return_value=fake_user)) as mock_get_user:
+    with patch(
+        "primeagent.services.auth.service.get_user_by_id", new=AsyncMock(return_value=fake_user)
+    ) as mock_get_user:
         result = await auth_service.get_current_user_from_access_token(token, db)
 
     assert result is fake_user

@@ -41,7 +41,9 @@ test(
 
     await page.goto("/");
 
-    await page.waitForSelector("text=sign in to primeagent", { timeout: 30000 });
+    await page.waitForSelector("text=sign in to primeagent", {
+      timeout: 30000,
+    });
 
     await page.getByPlaceholder("Username").fill("primeagent");
     await page.getByPlaceholder("Password").fill("primeagent");
@@ -179,7 +181,9 @@ test(
 
     await page.getByText("Logout", { exact: true }).click();
 
-    await page.waitForSelector("text=sign in to primeagent", { timeout: 30000 });
+    await page.waitForSelector("text=sign in to primeagent", {
+      timeout: 30000,
+    });
 
     await page.getByPlaceholder("Username").fill(secondRandomName);
     await page.getByPlaceholder("Password").fill(randomPassword);
@@ -246,7 +250,9 @@ test(
 
     await page.getByText("Logout", { exact: true }).click();
 
-    await page.waitForSelector("text=sign in to primeagent", { timeout: 30000 });
+    await page.waitForSelector("text=sign in to primeagent", {
+      timeout: 30000,
+    });
 
     await page.getByPlaceholder("Username").fill("primeagent");
     await page.getByPlaceholder("Password").fill("primeagent");

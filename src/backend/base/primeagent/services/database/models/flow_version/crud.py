@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from wfx.log import logger
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlmodel import col, delete, func, select
+from wfx.log import logger
 
 if TYPE_CHECKING:
     from uuid import UUID

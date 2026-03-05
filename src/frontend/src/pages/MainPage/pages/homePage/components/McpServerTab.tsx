@@ -3,12 +3,11 @@ import { useParams } from "react-router-dom";
 
 import { ForwardedIconComponent } from "@/components/common/genericIconComponent";
 import { Button } from "@/components/ui/button";
+import type { MCPTransport } from "@/controllers/API/queries/mcp/use-patch-install-mcp";
 import { ENABLE_MCP_COMPOSER } from "@/customization/feature-flags";
 import { useCustomIsLocalConnection } from "@/customization/hooks/use-custom-is-local-connection";
 import useTheme from "@/customization/hooks/use-custom-theme";
 import AuthModal from "@/modals/authModal";
-
-import type { MCPTransport } from "@/controllers/API/queries/mcp/use-patch-install-mcp";
 import { useFolderStore } from "@/stores/foldersStore";
 import { cn, getOS } from "@/utils/utils";
 import { useMcpServer } from "../hooks/useMcpServer";
@@ -110,10 +109,11 @@ const McpServerTab = ({ folderName }: { folderName: string }) => {
                 <Button
                   unstyled
                   key={item.name}
-                  className={`flex h-6 flex-row items-end gap-2 text-nowrap border-b-2 border-border border-b-transparent !py-1 font-medium ${selectedMode === item.name
+                  className={`flex h-6 flex-row items-end gap-2 text-nowrap border-b-2 border-border border-b-transparent !py-1 font-medium ${
+                    selectedMode === item.name
                       ? "border-b-2 border-black dark:border-b-white"
                       : "text-muted-foreground hover:text-foreground"
-                    } px-3 py-2 text-[13px]`}
+                  } px-3 py-2 text-[13px]`}
                   onClick={() => setSelectedMode(item.name)}
                 >
                   <span>{item.name}</span>

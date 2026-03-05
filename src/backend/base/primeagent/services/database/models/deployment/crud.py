@@ -3,9 +3,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-from wfx.log.logger import logger
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import col, delete, func, select
+from wfx.log.logger import logger
 
 from primeagent.services.database.models.deployment.model import Deployment
 from primeagent.services.database.utils import parse_uuid

@@ -7,8 +7,8 @@ This test suite validates that credentials are properly sanitized in error messa
 """
 
 import pytest
-from wfx.utils.util_strings import is_valid_database_url, sanitize_database_url
 from pydantic import ValidationError
+from wfx.utils.util_strings import is_valid_database_url, sanitize_database_url
 
 
 class TestDatabaseUrlCredentialExposure:

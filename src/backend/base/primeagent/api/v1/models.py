@@ -4,6 +4,8 @@ import json
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from loguru import logger
+from pydantic import BaseModel, field_validator
 from wfx.base.models.model_utils import replace_with_live_models
 from wfx.base.models.unified_models import (
     get_model_provider_metadata,
@@ -12,8 +14,6 @@ from wfx.base.models.unified_models import (
     get_provider_all_variables,
     get_unified_models_detailed,
 )
-from loguru import logger
-from pydantic import BaseModel, field_validator
 
 from primeagent.api.utils import CurrentActiveUser, DbSession
 from primeagent.services.auth.utils import get_current_active_user

@@ -30,7 +30,9 @@ test(
 
     await page.goto("/");
 
-    await page.waitForSelector("text=sign in to primeagent", { timeout: 30000 });
+    await page.waitForSelector("text=sign in to primeagent", {
+      timeout: 30000,
+    });
 
     await page.getByPlaceholder("Username").fill("primeagent");
     await page.getByPlaceholder("Password").fill("primeagent");
@@ -57,7 +59,9 @@ test(
 
     await page.reload();
 
-    await page.waitForSelector("text=sign in to primeagent", { timeout: 30000 });
+    await page.waitForSelector("text=sign in to primeagent", {
+      timeout: 30000,
+    });
 
     const isLoggedIn = await page
       .getByTestId("mainpage_title")

@@ -7,8 +7,8 @@ import pytest
 from primeagent.services.auth.mcp_encryption import is_encrypted
 from primeagent.services.auth.service import AuthService
 from primeagent.services.auth.utils import decrypt_api_key, encrypt_api_key
-from wfx.services.settings.auth import AuthSettings
 from pydantic import SecretStr
+from wfx.services.settings.auth import AuthSettings
 
 
 @pytest.fixture

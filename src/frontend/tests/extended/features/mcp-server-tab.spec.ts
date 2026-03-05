@@ -185,7 +185,7 @@ test(
 
       expect(
         hasApiKeyGenerated ||
-        !(await page.getByText("Generate API key").isVisible()),
+          !(await page.getByText("Generate API key").isVisible()),
       ).toBeTruthy();
     }
 

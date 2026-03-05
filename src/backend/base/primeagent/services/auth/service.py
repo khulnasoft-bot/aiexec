@@ -12,9 +12,9 @@ import jwt
 from cryptography.fernet import Fernet
 from fastapi import HTTPException, Request, WebSocketException, status
 from jwt import InvalidTokenError
+from sqlalchemy.exc import IntegrityError
 from wfx.log.logger import logger
 from wfx.services.auth.base import BaseAuthService
-from sqlalchemy.exc import IntegrityError
 
 from primeagent.helpers.user import get_user_by_flow_id_or_endpoint_name
 from primeagent.services.auth.constants import AUTO_LOGIN_ERROR, AUTO_LOGIN_WARNING
@@ -38,8 +38,8 @@ from primeagent.services.deps import session_scope
 from primeagent.services.schema import ServiceType
 
 if TYPE_CHECKING:
-    from wfx.services.settings.service import SettingsService
     from sqlmodel.ext.asyncio.session import AsyncSession
+    from wfx.services.settings.service import SettingsService
 
     from primeagent.services.database.models.api_key.model import ApiKey
 

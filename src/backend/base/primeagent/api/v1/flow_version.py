@@ -4,10 +4,10 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
-from wfx.log import logger
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
+from wfx.log import logger
 
 from primeagent.api.utils import CurrentActiveUser, DbSession, DbSessionReadOnly
 from primeagent.api.utils.core import remove_api_keys

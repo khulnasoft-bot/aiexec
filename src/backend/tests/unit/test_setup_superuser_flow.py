@@ -3,8 +3,8 @@ from primeagent.services.auth.utils import verify_password
 from primeagent.services.database.models.user.model import User
 from primeagent.services.deps import get_settings_service, session_scope
 from primeagent.services.utils import setup_superuser, teardown_superuser
-from wfx.services.settings.constants import DEFAULT_SUPERUSER, DEFAULT_SUPERUSER_PASSWORD
 from sqlmodel import select
+from wfx.services.settings.constants import DEFAULT_SUPERUSER, DEFAULT_SUPERUSER_PASSWORD
 
 
 @pytest.fixture

@@ -5,8 +5,8 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from wfx.log.logger import logger
 from sqlmodel import select
+from wfx.log.logger import logger
 
 from primeagent.services.auth import utils as auth_utils
 from primeagent.services.base import Service
@@ -17,8 +17,8 @@ from primeagent.services.variable.constants import CREDENTIAL_TYPE, GENERIC_TYPE
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from wfx.services.settings.service import SettingsService
     from sqlmodel.ext.asyncio.session import AsyncSession
+    from wfx.services.settings.service import SettingsService
 
 
 class DatabaseVariableService(VariableService, Service):
