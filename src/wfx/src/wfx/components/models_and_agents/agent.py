@@ -18,11 +18,13 @@ from wfx.base.models.unified_models import (
     get_llm,
     update_model_options_in_build_config,
 )
+from wfx.base.models.watsonx_constants import IBM_WATSONX_URLS
 from wfx.components.helpers import CurrentDateComponent
 from wfx.components.langchain_utilities.tool_calling import ToolCallingAgentComponent
 from wfx.custom.custom_component.component import get_component_toolkit
+from wfx.field_typing.range_spec import RangeSpec
 from wfx.helpers.base_model import build_model_from_schema
-from wfx.inputs.inputs import BoolInput, ModelInput
+from wfx.inputs.inputs import BoolInput, DropdownInput, ModelInput, StrInput
 from wfx.io import IntInput, MessageTextInput, MultilineInput, Output, SecretStrInput, TableInput
 from wfx.log.logger import logger
 from wfx.schema.data import Data
@@ -39,7 +41,7 @@ def set_advanced_true(component_input):
 class AgentComponent(ToolCallingAgentComponent):
     display_name: str = "Agent"
     description: str = "Define the agent's instructions, then enter a task to complete using tools."
-    documentation: str = "https://docs-primeagent.khulnasoft.com/agents"
+    documentation: str = "https://docs.prime.khulnasoft.com/agents"
     icon = "bot"
     beta = False
     name = "Agent"
@@ -60,6 +62,22 @@ class AgentComponent(ToolCallingAgentComponent):
             info="Model Provider API key",
             real_time_refresh=True,
             advanced=True,
+        ),
+        DropdownInput(
+            name="base_url_ibm_watsonx",
+            display_name="watsonx API Endpoint",
+            info="The base URL of the API (IBM watsonx.ai only)",
+            options=IBM_WATSONX_URLS,
+            value=IBM_WATSONX_URLS[0],
+            show=False,
+            real_time_refresh=True,
+        ),
+        StrInput(
+            name="project_id",
+            display_name="watsonx Project ID",
+            info="The project ID associated with the foundation model (IBM watsonx.ai only)",
+            show=False,
+            required=False,
         ),
         MultilineInput(
             name="system_prompt",
@@ -82,6 +100,13 @@ class AgentComponent(ToolCallingAgentComponent):
             info="Number of chat history messages to retrieve.",
             advanced=True,
             show=True,
+        ),
+        IntInput(
+            name="max_tokens",
+            display_name="Max Tokens",
+            info="Maximum number of tokens to generate. Field name varies by provider.",
+            advanced=True,
+            range_spec=RangeSpec(min=1, max=128000, step=1, step_type="int"),
         ),
         MultilineInput(
             name="format_instructions",
@@ -163,10 +188,16 @@ class AgentComponent(ToolCallingAgentComponent):
         """Get the agent requirements for the agent."""
         from langchain_core.tools import StructuredTool
 
+        max_tokens_val = getattr(self, "max_tokens", None)
+        if max_tokens_val in {"", 0}:
+            max_tokens_val = None
         llm_model = get_llm(
             model=self.model,
             user_id=self.user_id,
             api_key=self.api_key,
+            max_tokens=max_tokens_val,
+            watsonx_url=getattr(self, "base_url_ibm_watsonx", None),
+            watsonx_project_id=getattr(self, "project_id", None),
         )
         if llm_model is None:
             msg = "No language model selected. Please choose a model to proceed."
@@ -451,9 +482,24 @@ class AgentComponent(ToolCallingAgentComponent):
 
         # Iterate over all providers in the MODEL_PROVIDERS_DICT
         if field_name == "model":
-            self.log(str(field_value))
             # Update input types for all fields
             build_config = self.update_input_types(build_config)
+
+            # Show/hide provider-specific fields based on selected model
+            # Get current model value - from field_value if model is being changed, otherwise from build_config
+            current_model_value = field_value if field_name == "model" else build_config.get("model", {}).get("value")
+            if isinstance(current_model_value, list) and len(current_model_value) > 0:
+                selected_model = current_model_value[0]
+                provider = selected_model.get("provider", "")
+
+                # Show/hide watsonx fields
+                is_watsonx = provider == "IBM WatsonX"
+                if "base_url_ibm_watsonx" in build_config:
+                    build_config["base_url_ibm_watsonx"]["show"] = is_watsonx
+                    build_config["base_url_ibm_watsonx"]["required"] = is_watsonx
+                if "project_id" in build_config:
+                    build_config["project_id"]["show"] = is_watsonx
+                    build_config["project_id"]["required"] = is_watsonx
 
             # Validate required keys
             default_keys = [

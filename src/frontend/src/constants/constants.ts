@@ -7,12 +7,20 @@ import {
 import { customDefaultShortcuts } from "../customization/constants";
 import type { languageMap } from "../types/components";
 
-const getEnvVar = (key: string, defaultValue: unknown = undefined) => {
+export const DEFAULT_SESSION_NAME = "Default Session";
+export const NEW_SESSION_NAME = "New Session";
+export const SLIDING_TRANSITION_MS = 300;
+
+const getEnvVar = <T = string | undefined>(
+  key: string,
+  defaultValue?: T,
+): T | undefined => {
   if (typeof process !== "undefined" && process.env) {
-    return process.env[key] ?? defaultValue;
+    return (process.env[key] as T) ?? defaultValue;
   }
   try {
-    return new Function(`return import.meta.env?.${key}`)() ?? defaultValue;
+    const value = new Function(`return import.meta.env?.${key}`)() as T;
+    return value ?? defaultValue;
   } catch {
     return defaultValue;
   }
@@ -886,9 +894,11 @@ export const DRAG_EVENTS_CUSTOM_TYPESS = {
   "text/plain": "text/plain",
 };
 
-export const NOTE_NODE_MIN_WIDTH = 260;
-export const NOTE_NODE_MIN_HEIGHT = 100;
+export const NOTE_NODE_MIN_WIDTH = 280;
+export const NOTE_NODE_MIN_HEIGHT = 140;
 export const DEFAULT_NOTE_SIZE = 324;
+export const CHAT_INPUT_MIN_HEIGHT = 24;
+export const CHAT_INPUT_MAX_HEIGHT = 200;
 
 export const COLOR_OPTIONS = {
   amber: "hsl(var(--note-amber))",
@@ -986,10 +996,10 @@ export const DEFAULT_FILE_PICKER_TIMEOUT = 60000;
 export const DISCORD_URL = "https://discord.com/invite/EqksyE2EX9";
 export const GITHUB_URL = "https://github.com/khulnasoft-bot/primeagent";
 export const TWITTER_URL = "https://x.com/primeagent_ai";
-export const DOCS_URL = "https://docs-primeagent.khulnasoft.com";
+export const DOCS_URL = "https://docs.prime.khulnasoft.com";
 export const DATASTAX_DOCS_URL =
   "https://docs.datastax.com/en/primeagent/index.html";
-export const DESKTOP_URL = "https://www.primeagent.khulnasoft.com/desktop";
+export const DESKTOP_URL = "https://www.prime.khulnasoft.com/desktop";
 export const BUG_REPORT_URL =
   "https://github.com/khulnasoft-bot/primeagent/issues";
 

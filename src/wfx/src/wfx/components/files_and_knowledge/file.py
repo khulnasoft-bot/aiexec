@@ -48,7 +48,7 @@ class FileComponent(BaseFileComponent):
     display_name = "Read File"
     # description is now a dynamic property - see get_tool_description()
     _base_description = "Loads content from one or more files."
-    documentation: str = "https://docs-primeagent.khulnasoft.com/read-file"
+    documentation: str = "https://docs.prime.khulnasoft.com/read-file"
     icon = "file-text"
     name = "File"
     add_tool_output = True  # Enable tool mode toggle without requiring tool_mode inputs
@@ -109,6 +109,8 @@ class FileComponent(BaseFileComponent):
             options=_get_storage_location_options(),
             real_time_refresh=True,
             limit=1,
+            value=[{"name": "Local", "icon": "hard-drive"}],
+            advanced=True,
         ),
         *_base_inputs,
         StrInput(
@@ -587,7 +589,16 @@ class FileComponent(BaseFileComponent):
 
             from wfx.schema.data import Data
 
-            resolved_path = Path(self.resolve_path(file_path_str))
+            # Use same resolution logic as BaseFileComponent (support storage paths)
+            path_str = str(file_path_str)
+            if parse_storage_path(path_str):
+                try:
+                    resolved_path = Path(self.get_full_path(path_str))
+                except (ValueError, AttributeError):
+                    resolved_path = Path(self.resolve_path(path_str))
+            else:
+                resolved_path = Path(self.resolve_path(path_str))
+
             if not resolved_path.exists():
                 msg = f"File or directory not found: {file_path_str}"
                 self.log(msg)

@@ -1,0 +1,5 @@
+"""Telemetry service for wfx package."""
+
+from .service import TelemetryService
+
+__all__ = ["TelemetryService"]

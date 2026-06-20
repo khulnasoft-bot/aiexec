@@ -27,11 +27,11 @@ test.skip(
 
     await page
       .getByTestId("inputlist_str_urls_0")
-      .fill("https://docs-primeagent.khulnasoft.com/");
+      .fill("https://docs.prime.khulnasoft.com/");
 
     await page
       .getByTestId("inputlist_str_urls_1")
-      .fill("https://www.primeagent.khulnasoft.com/");
+      .fill("https://www.prime.khulnasoft.com/");
     await adjustScreenView(page);
 
     await page.getByTestId("default_slider_display_value").click();

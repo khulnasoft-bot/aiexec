@@ -10,23 +10,14 @@ import { cn, testIdCase } from "@/utils/utils";
 import ListItem from "./ListItem";
 
 // Update interface with better types
-type GenericItemType = {
-  id: string;
-  name: string;
-  icon?: string;
-  description?: string;
-  metaData?: string;
-  link?: string;
-};
-
 interface ListSelectionComponentProps {
   open: boolean;
   onClose: () => void;
-  options: GenericItemType[];
-  setSelectedList: (action: GenericItemType[]) => void;
-  selectedList: GenericItemType[];
+  options: any[];
+  setSelectedList: (action: any[]) => void;
+  selectedList: any[];
   searchCategories?: string[];
-  onSelection?: (action: GenericItemType) => void;
+  onSelection?: (action: any) => void;
   limit?: number;
   headerSearchPlaceholder?: string;
   addButtonText?: string;
@@ -46,10 +37,10 @@ const ListSelectionComponent = ({
   addButtonText,
   onAddButtonClick,
   ...baseInputProps
-}: InputProps<GenericItemType[], ListSelectionComponentProps>) => {
+}: InputProps<any, ListSelectionComponentProps>) => {
   const { nodeClass } = baseInputProps;
   const [search, setSearch] = useState("");
-  const [hoveredItem, setHoveredItem] = useState<GenericItemType | null>(null);
+  const [hoveredItem, setHoveredItem] = useState<any | null>(null);
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
   const [isKeyboardNavActive, setIsKeyboardNavActive] = useState(false);
   const listContainerRef = useRef<HTMLDivElement>(null);
@@ -65,7 +56,7 @@ const ListSelectionComponent = ({
   }, [options, search]);
 
   const handleSelectAction = useCallback(
-    (action: GenericItemType) => {
+    (action: any) => {
       if (limit !== 1) {
         // Multiple selection mode
         const isAlreadySelected = selectedList.some(
@@ -86,7 +77,13 @@ const ListSelectionComponent = ({
         }
       } else {
         // Single selection mode
-        setSelectedList([action]);
+        setSelectedList([
+          {
+            name: action.name,
+            icon: "icon" in action ? action.icon : undefined,
+            link: "link" in action ? action.link : undefined,
+          },
+        ]);
         onClose();
       }
     },

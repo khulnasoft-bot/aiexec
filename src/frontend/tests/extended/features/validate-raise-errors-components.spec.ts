@@ -19,7 +19,7 @@ from primeagent.schema import Data
 class CustomComponent(Component):
     display_name = "Custom Component"
     description = "Use as a template to create your own component."
-    documentation: str = "https://docs-primeagent.khulnasoft.com/components-custom-components"
+    documentation: str = "https://docs.prime.khulnasoft.com/components-custom-components"
     icon = "code"
     name = "CustomComponent"
 
@@ -65,7 +65,7 @@ class CustomComponent(Component):
     });
     await page.getByTestId("title-Custom Component").click();
 
-    await page.getByTestId("code-button-modal").click();
+    await page.getByTestId("code-button-modal").last().click();
 
     await page.locator(".ace_content").click();
     await page.keyboard.press(`ControlOrMeta+A`);

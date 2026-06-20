@@ -18,26 +18,29 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         id: setup-node
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "pnpm"
-          cache-dependency-path: src/frontend/pnpm-lock.yaml
+
+      - name: Cache Node.js dependencies
+        uses: actions/cache@v5
+        id: npm-cache
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('src/frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
       - name: Install Node.js dependencies
         run: |
           cd src/frontend
-          pnpm install --frozen-lockfile
+          npm ci
+        if: ${{ steps.setup-node.outputs.cache-hit != 'true' }}
       - name: Run Biome
         run: |
           cd src/frontend
-          pnpm run format
+          npm run format
 
       - uses: autofix-ci/action@635ffb0c9798bd160680f18fd73371e355b85f27

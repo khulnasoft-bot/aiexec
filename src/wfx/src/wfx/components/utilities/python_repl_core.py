@@ -10,7 +10,7 @@ from wfx.schema.data import Data
 class PythonREPLComponent(Component):
     display_name = "Python Interpreter"
     description = "Run Python code with optional imports. Use print() to see the output."
-    documentation: str = "https://docs-primeagent.khulnasoft.com/python-interpreter"
+    documentation: str = "https://docs.prime.khulnasoft.com/python-interpreter"
     icon = "square-terminal"
 
     inputs = [

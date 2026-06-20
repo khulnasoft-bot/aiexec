@@ -23,7 +23,7 @@ test(
 
     await page.getByTestId("sidebar-custom-component-button").click();
 
-    await expect(page.getByTestId("code-button-modal")).toBeVisible({
+    await expect(page.getByTestId("code-button-modal").last()).toBeVisible({
       timeout: 3000,
     });
 
@@ -40,7 +40,7 @@ from primeagent.schema.message import Message
 class CustomComponent(Component):
     display_name = "Custom Component"
     description = "Use as a template to create your own component."
-    documentation: str = "https://docs-primeagent.khulnasoft.com/components-custom-components"
+    documentation: str = "https://docs.prime.khulnasoft.com/components-custom-components"
     icon = "custom_components"
     name = "CustomComponent"
 

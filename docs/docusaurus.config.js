@@ -1,6 +1,7 @@
 // @ts-check
 // Note: type annotations allow type checking and IDEs autocompletion
 
+const path = require("path");
 const lightCodeTheme = require("prism-react-renderer/themes/github");
 const darkCodeTheme = require("prism-react-renderer/themes/dracula");
 const { remarkCodeHike } = require("@code-hike/mdx");
@@ -13,15 +14,19 @@ const config = {
   tagline:
     "Primeagent is a low-code app builder for RAG and multi-agent AI applications.",
   favicon: "img/favicon.ico",
-  url: "https://docs-primeagent.khulnasoft.com",
+  url: "https://docs.prime.khulnasoft.com",
   baseUrl: process.env.BASE_URL ? process.env.BASE_URL : "/",
   onBrokenLinks: "throw",
-  onBrokenMarkdownLinks: "warn",
   onBrokenAnchors: "warn",
   organizationName: "khulnasoft-bot",
   projectName: "primeagent",
   trailingSlash: false,
   staticDirectories: ["static"],
+  markdown: {
+    hooks: {
+      onBrokenMarkdownLinks: "warn",
+    },
+  },
   i18n: {
     defaultLocale: "en",
     locales: ["en"],
@@ -36,11 +41,11 @@ const config = {
     },
     ...(isProduction
       ? [
-          // Google Consent Mode - Set defaults before Google tags load
-          {
-            tagName: "script",
-            attributes: {},
-            innerHTML: `
+        // Google Consent Mode - Set defaults before Google tags load
+        {
+          tagName: "script",
+          attributes: {},
+          innerHTML: `
               window.dataLayer = window.dataLayer || [];
               function gtag(){dataLayer.push(arguments);}
 
@@ -52,12 +57,12 @@ const config = {
                 'analytics_storage': 'denied'
               });
             `,
-          },
-          // TrustArc Consent Update Listener
-          {
-            tagName: "script",
-            attributes: {},
-            innerHTML: `
+        },
+        // TrustArc Consent Update Listener
+        {
+          tagName: "script",
+          attributes: {},
+          innerHTML: `
               (function() {
                 function updateGoogleConsent() {
                   if (typeof window.truste !== 'undefined' && window.truste.cma) {
@@ -91,8 +96,8 @@ const config = {
                 }
               })();
             `,
-          },
-        ]
+        },
+      ]
       : []),
   ],
 
@@ -132,11 +137,6 @@ const config = {
           customCss: [
             require.resolve("@code-hike/mdx/styles.css"),
             require.resolve("./css/custom.css"),
-            require.resolve("./css/docu-notion-styles.css"),
-            require.resolve(
-              "./css/gifplayer.css"
-              //"./node_modules/react-gif-player/dist/gifplayer.css" // this gave a big red compile warning which is seaming unrelated "  Replace Autoprefixer browsers option to Browserslist config..."
-            ),
           ],
         },
       }),
@@ -144,6 +144,10 @@ const config = {
     [
       "redocusaurus",
       {
+        openapi: {
+          path: "openapi",
+          routeBasePath: "/api",
+        },
         specs: [
           {
             id: "api",
@@ -153,12 +157,26 @@ const config = {
         ],
         theme: {
           primaryColor: "#7528FC",
-          // primaryColorDark: "#7528FC", // Force dark mode for Redoc
         },
       },
     ],
   ],
   plugins: [
+    // Alias so MDX can import code from the Primeagent repo with !!raw-loader!@primeagent/src/...
+    function primeagentCodeImportPlugin(context) {
+      return {
+        name: "primeagent-code-import",
+        configureWebpack() {
+          return {
+            resolve: {
+              alias: {
+                "@primeagent": path.resolve(context.siteDir, ".."),
+              },
+            },
+          };
+        },
+      };
+    },
     ["docusaurus-node-polyfills", { excludeAliases: ["console"] }],
     "docusaurus-plugin-image-zoom",
     ["./src/plugins/segment", { segmentPublicWriteKey: process.env.SEGMENT_PUBLIC_WRITE_KEY, allowedInDev: true }],

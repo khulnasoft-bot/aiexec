@@ -26,6 +26,18 @@ uv run wfx serve my_flow.json
 
 ## Key Features
 
+### Pluggable Services
+
+wfx supports a pluggable service architecture that allows you to customize and extend its behavior. You can replace built-in services (storage, telemetry, tracing, etc.) with your own implementations or use Primeagent's full-featured services.
+
+📖 **See [PLUGGABLE_SERVICES.md](./PLUGGABLE_SERVICES.md) for details** including:
+
+- Quick start guides for CLI users, library developers, and plugin authors
+- Service registration via config files, decorators, and entry points
+- Creating custom service implementations with dependency injection
+- Using full-featured Primeagent services in wfx
+- Troubleshooting and migration guides
+
 ### Flattened Component Access
 
 wfx now supports simplified component imports for better developer experience:

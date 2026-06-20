@@ -1,0 +1,44 @@
+# Primeagent Service Configuration
+#
+# This file tells WFX to use Primeagent's full-featured service implementations
+# instead of the minimal/noop services built into WFX.
+#
+# Usage:
+#   1. Copy this file to your PRIMEAGENT_CONFIG_DIR as wfx.toml
+#   2. Or add to pyproject.toml under [tool.wfx.services]
+#
+# The services will be automatically discovered and loaded when you run:
+#   - primeagent run
+#   - wfx serve (when run from primeagent project)
+
+[services]
+# Core Services - Full-featured Primeagent implementations
+database_service = "primeagent.services.database.service:DatabaseService"
+storage_service = "primeagent.services.storage.local:LocalStorageService"
+cache_service = "primeagent.services.cache.service:ThreadingInMemoryCache"
+
+# Authentication & Session Management
+auth_service = "primeagent.services.auth.service:AuthService"
+session_service = "primeagent.services.session.service:SessionService"
+
+# Chat & Communication
+chat_service = "primeagent.services.chat.service:ChatService"
+
+# State & Data Management
+state_service = "primeagent.services.state.service:StateService"
+variable_service = "primeagent.services.variable.service:VariableService"
+
+# Background Processing
+task_service = "primeagent.services.task.service:TaskService"
+job_queue_service = "primeagent.services.job_queue.service:JobQueueService"
+
+# Marketplace & Components
+store_service = "primeagent.services.store.service:StoreService"
+shared_component_cache_service = "primeagent.services.shared_component_cache.service:SharedComponentCacheService"
+
+# Observability
+telemetry_service = "primeagent.services.telemetry.service:TelemetryService"
+tracing_service = "primeagent.services.tracing.service:TracingService"
+
+# Note: settings_service is NOT configurable - it always uses the built-in implementation
+# Note: mcp_composer_service uses the wfx implementation by default

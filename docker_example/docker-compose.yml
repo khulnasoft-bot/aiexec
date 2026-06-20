@@ -1,7 +1,7 @@
 services:
   primeagent:
     image: khulnasoft/primeagent:latest # or another version tag on https://hub.docker.com/r/khulnasoft/primeagent
-    pull_policy: always               # set to 'always' when using 'latest' image
+    pull_policy: always # set to 'always' when using 'latest' image
     ports:
       - "7860:7860"
     depends_on:

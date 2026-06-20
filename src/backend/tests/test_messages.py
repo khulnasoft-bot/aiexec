@@ -1080,12 +1080,12 @@ class TestMessageEdgeCases:
     def test_content_blocks_validation(self):
         """Test content_blocks field validation."""
         from primeagent.services.database.models.message.model import MessageTable
-        from wfx.schema.content_block import ContentBlock as WfxContentBlock
-        from wfx.schema.content_types import TextContent as WfxTextContent
+        from wfx.schema.content_block import ContentBlock as LfxContentBlock
+        from wfx.schema.content_types import TextContent as LfxTextContent
 
-        content_block = WfxContentBlock(
+        content_block = LfxContentBlock(
             title="Test Block",
-            contents=[WfxTextContent(type="text", text="Test content")],
+            contents=[LfxTextContent(type="text", text="Test content")],
         )
 
         message = Message(
@@ -1103,13 +1103,13 @@ class TestMessageEdgeCases:
     def test_properties_validation(self):
         """Test properties field validation."""
         from primeagent.services.database.models.message.model import MessageTable
-        from wfx.schema.properties import Properties as WfxProperties
-        from wfx.schema.properties import Source as WfxSource
+        from wfx.schema.properties import Properties as LfxProperties
+        from wfx.schema.properties import Source as LfxSource
 
-        props = WfxProperties(
+        props = LfxProperties(
             text_color="blue",
             background_color="white",
-            source=WfxSource(id="src1", display_name="Source 1", source="test"),
+            source=LfxSource(id="src1", display_name="Source 1", source="test"),
         )
 
         message = Message(

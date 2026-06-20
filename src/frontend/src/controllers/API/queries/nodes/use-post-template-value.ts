@@ -1,6 +1,5 @@
 import type { UseMutationResult } from "@tanstack/react-query";
 import useFlowStore from "@/stores/flowStore";
-import useFlowsManagerStore from "@/stores/flowsManagerStore";
 import type {
   APIClassType,
   ResponseErrorDetailAPI,
@@ -9,7 +8,7 @@ import type {
 import { api } from "../../api";
 import { getURL } from "../../helpers/constants";
 import { UseRequestProcessor } from "../../services/request-processor";
-
+import useFlowsManagerStore from "@/stores/flowsManagerStore";
 interface IPostTemplateValue {
   value: any;
   tool_mode?: boolean;

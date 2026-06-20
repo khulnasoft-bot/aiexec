@@ -16,7 +16,7 @@ from wfx.utils.async_helpers import run_until_complete
 from tests.api_keys import has_api_key
 
 
-class TestAgentInWfxRun:
+class TestAgentInLfxRun:
     """Test the agent workflow that demonstrates wfx run functionality."""
 
     @pytest.fixture

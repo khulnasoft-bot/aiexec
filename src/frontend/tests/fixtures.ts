@@ -16,7 +16,7 @@ export const test = base.extend({
     let allowFlowErrors = false;
 
     // Add helper method to page context
-    page.allowFlowErrors = () => {
+    (page as any).allowFlowErrors = () => {
       allowFlowErrors = true;
     };
 
@@ -36,10 +36,14 @@ export const test = base.extend({
           url.includes("/auto_login") ||
           url.includes("/logout");
         if (!isAuth) {
+          console.log(
+            `🚨 Backend Error: ${status} ${response.statusText()} - ${url}`,
+          );
           let responseBody: string | undefined;
           try {
             responseBody = await response.text();
-          } catch (_e) {
+            console.log(`   Response: ${responseBody}`);
+          } catch (e) {
             responseBody = "Could not read response";
           }
           errors.push({
@@ -72,6 +76,9 @@ export const test = base.extend({
             contentType.includes(hint),
           );
           if (isStreamLike) {
+            console.log(
+              `Skipping streaming response body parsing for ${url} (${contentType || "unknown content-type"})`,
+            );
             return;
           }
 
@@ -97,16 +104,22 @@ export const test = base.extend({
             }
 
             if (bodyResult === bodyTimeoutToken) {
+              console.warn(
+                `Timed out reading response body for ${url}; skipping body inspection.`,
+              );
               return;
             }
 
             responseBody = bodyResult;
-          } catch (_bodyReadErr) {
+          } catch (bodyReadErr) {
             if (timeoutId) {
               clearTimeout(timeoutId);
               timeoutId = undefined;
             }
-
+            console.warn(
+              `Failed to read response body for ${url}; skipping body inspection.`,
+              bodyReadErr,
+            );
             return;
           }
 
@@ -142,12 +155,12 @@ export const test = base.extend({
                     hasError = true;
                     break;
                   }
-                } catch (_lineParseErr) {
+                } catch (lineParseErr) {
                   // Skip lines that aren't valid JSON
                 }
               }
             }
-          } catch (_parseErr) {
+          } catch (parseErr) {
             // Fallback to string search if JSON parsing completely fails
           }
 
@@ -174,6 +187,9 @@ export const test = base.extend({
           }
 
           if (hasError && errorPreview) {
+            console.log(`🚨 Flow Error Detected in Event Stream - ${url}`);
+            console.log(`   Error: ${errorPreview}`);
+
             const error = {
               url,
               status: 200,
@@ -196,13 +212,13 @@ export const test = base.extend({
               throw new Error(errorMessage);
             }
           }
-        } catch (_e) {
+        } catch (e) {
           // Only ignore parsing errors, not our intentional throws
           if (
-            _e instanceof Error &&
-            _e.message.includes("Flow execution error")
+            e instanceof Error &&
+            e.message.includes("Flow execution error")
           ) {
-            throw _e;
+            throw e;
           }
           // Ignore parsing errors for event streams
         }
@@ -214,7 +230,18 @@ export const test = base.extend({
     // Check for errors and fail test if not allowed
     if (errors.length > 0) {
       const flowErrors = errors.filter((e) => e.type === "flow_error");
-      const _httpErrors = errors.filter((e) => e.type === "http_error");
+      const httpErrors = errors.filter((e) => e.type === "http_error");
+
+      console.log(`\n📋 Found ${errors.length} backend error(s) during test`);
+
+      if (flowErrors.length > 0) {
+        console.log(
+          `   ⚠️  ${flowErrors.length} flow execution error(s) detected`,
+        );
+      }
+      if (httpErrors.length > 0) {
+        console.log(`   ⚠️  ${httpErrors.length} HTTP error(s) detected`);
+      }
 
       // Fail the test if flow errors occurred and weren't allowed
       if (flowErrors.length > 0 && !allowFlowErrors) {

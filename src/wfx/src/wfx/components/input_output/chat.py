@@ -19,7 +19,7 @@ from wfx.utils.constants import (
 class ChatInput(ChatComponent):
     display_name = "Chat Input"
     description = "Get chat inputs from the Playground."
-    documentation: str = "https://docs-primeagent.khulnasoft.com/chat-input-and-output"
+    documentation: str = "https://docs.prime.khulnasoft.com/chat-input-and-output"
     icon = "MessagesSquare"
     name = "ChatInput"
     minimized = True

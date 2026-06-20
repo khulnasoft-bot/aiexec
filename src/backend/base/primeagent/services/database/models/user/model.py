@@ -10,6 +10,8 @@ from primeagent.schema.serialize import UUIDstr
 
 if TYPE_CHECKING:
     from primeagent.services.database.models.api_key.model import ApiKey
+    from primeagent.services.database.models.deployment.model import Deployment
+    from primeagent.services.database.models.deployment_provider_account.model import DeploymentProviderAccount
     from primeagent.services.database.models.flow.model import Flow
     from primeagent.services.database.models.folder.model import Folder
     from primeagent.services.database.models.variable.model import Variable
@@ -38,6 +40,17 @@ class User(SQLModel, table=True):  # type: ignore[call-arg]
     )
     store_api_key: str | None = Field(default=None, nullable=True)
     flows: list["Flow"] = Relationship(back_populates="user")
+    # User is a secondary parent, so cascade="delete" (no "delete-orphan").
+    # Orphan management is handled by the owning models
+    # (DeploymentProviderAccount, Folder) which use "all, delete, delete-orphan".
+    deployment_provider_accounts: list["DeploymentProviderAccount"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"cascade": "delete"},
+    )
+    deployments: list["Deployment"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"cascade": "delete"},
+    )
     variables: list["Variable"] = Relationship(
         back_populates="user",
         sa_relationship_kwargs={"cascade": "delete"},

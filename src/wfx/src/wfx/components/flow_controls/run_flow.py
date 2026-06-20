@@ -13,7 +13,7 @@ class RunFlowComponent(RunFlowBaseComponent):
         "Executes another flow from within the same project. Can also be used as a tool for agents."
         " \n **Select a Flow to use the tool mode**"
     )
-    documentation: str = "https://docs-primeagent.khulnasoft.com/run-flow"
+    documentation: str = "https://docs.prime.khulnasoft.com/run-flow"
     beta = True
     name = "RunFlow"
     icon = "Workflow"
@@ -28,7 +28,7 @@ class RunFlowComponent(RunFlowBaseComponent):
         field_name: str | None = None,
     ):
         missing_keys = [key for key in self.default_keys if key not in build_config]
-        for key in missing_keys:
+        for key in missing_keys:  # TODO: create a defaults dict to avoid hardcoding the defaults here
             if key == "flow_name_selected":
                 build_config[key] = {"options": [], "options_metadata": [], "value": None}
             elif key == "flow_id_selected":

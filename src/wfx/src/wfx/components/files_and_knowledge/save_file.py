@@ -28,7 +28,7 @@ def _get_storage_location_options():
 class SaveToFileComponent(Component):
     display_name = "Write File"
     description = "Save data to local file, AWS S3, or Google Drive in the selected format."
-    documentation: str = "https://docs-primeagent.khulnasoft.com/write-file"
+    documentation: str = "https://docs.prime.khulnasoft.com/write-file"
     icon = "file-text"
     name = "SaveToFile"
 
@@ -53,7 +53,6 @@ class SaveToFileComponent(Component):
     GDRIVE_FORMAT_CHOICES = ["txt", "json", "csv", "xlsx", "slides", "docs", "jpg", "mp3"]
 
     inputs = [
-        # Storage location selection
         SortableListInput(
             name="storage_location",
             display_name="Storage Location",
@@ -62,6 +61,8 @@ class SaveToFileComponent(Component):
             options=_get_storage_location_options(),
             real_time_refresh=True,
             limit=1,
+            value=[{"name": "Local", "icon": "hard-drive"}],
+            advanced=True,
         ),
         # Common inputs
         HandleInput(

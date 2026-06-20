@@ -1,25 +1,12 @@
 import asyncio
 import json
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
 from uuid import UUID
 
+from langchain_core.chat_history import BaseChatMessageHistory
+from langchain_core.messages import BaseMessage
 from sqlalchemy import delete
 from sqlmodel import col, select
-
-if TYPE_CHECKING:
-    from langchain_core.chat_history import BaseChatMessageHistory
-    from langchain_core.messages import BaseMessage
-else:
-    try:
-        from langchain_core.chat_history import BaseChatMessageHistory
-        from langchain_core.messages import BaseMessage
-    except ImportError:
-        class BaseChatMessageHistory:
-            pass
-
-        class BaseMessage:
-            pass
 from sqlmodel.ext.asyncio.session import AsyncSession
 from wfx.log.logger import logger
 from wfx.utils.async_helpers import run_until_complete

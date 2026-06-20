@@ -10,33 +10,31 @@ import {
   useState,
 } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
-
+import { Badge } from "@/components/ui/badge";
+import { ICON_STROKE_WIDTH } from "@/constants/constants";
+import { useShortcutsStore } from "@/stores/shortcuts";
+import type { targetHandleType } from "@/types/flow";
 import ForwardedIconComponent, {
   default as IconComponent,
-} from "@/components/common/genericIconComponent";
-import ShadTooltip from "@/components/common/shadTooltipComponent";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ICON_STROKE_WIDTH } from "@/constants/constants";
-import useFlowStore from "@/stores/flowStore";
-import { useShortcutsStore } from "@/stores/shortcuts";
-import { useTypesStore } from "@/stores/typesStore";
-import type { NodeOutputFieldComponentType } from "@/types/components";
-import type { targetHandleType } from "@/types/flow";
-import { nodeColorsName } from "@/utils/styleUtils";
+} from "../../../../components/common/genericIconComponent";
+import ShadTooltip from "../../../../components/common/shadTooltipComponent";
+import { Button } from "../../../../components/ui/button";
+import useFlowStore from "../../../../stores/flowStore";
+import { useTypesStore } from "../../../../stores/typesStore";
+import type { NodeOutputFieldComponentType } from "../../../../types/components";
+import {
+  getGroupOutputNodeId,
+  scapedJSONStringfy,
+  scapeJSONParse,
+} from "../../../../utils/reactflowUtils";
+import { nodeColorsName } from "../../../../utils/styleUtils";
 import {
   cn,
   logFirstMessage,
   logHasMessage,
   logTypeIsError,
   logTypeIsUnknown,
-} from "@/utils/utils";
-
-import {
-  getGroupOutputNodeId,
-  scapedJSONStringfy,
-  scapeJSONParse,
-} from "../../../../utils/reactflowUtils";
+} from "../../../../utils/utils";
 import HandleRenderComponent from "../handleRenderComponent";
 import OutputComponent from "../OutputComponent";
 import OutputModal from "../outputModal";
@@ -307,7 +305,9 @@ function NodeOutputField({
           colors={colors}
           setFilterEdge={setFilterEdge}
           showNode={showNode}
-          testIdComplement={`${data?.type?.toLowerCase()}-${showNode ? "shownode" : "noshownode"}`}
+          testIdComplement={`${data?.type?.toLowerCase()}-${
+            showNode ? "shownode" : "noshownode"
+          }`}
           colorName={loopInputColorName}
         />
       );
@@ -337,7 +337,9 @@ function NodeOutputField({
         colors={colors}
         setFilterEdge={setFilterEdge}
         showNode={showNode}
-        testIdComplement={`${data?.type?.toLowerCase()}-${showNode ? "shownode" : "noshownode"}`}
+        testIdComplement={`${data?.type?.toLowerCase()}-${
+          showNode ? "shownode" : "noshownode"
+        }`}
         colorName={
           data.node?.outputs?.[index].allows_loop
             ? loopInputColorName
@@ -364,6 +366,8 @@ function NodeOutputField({
 
   const disabledInspectButton =
     !displayOutputPreview || unknownOutput || emptyOutput;
+
+  const memoizedType = useMemo(() => type?.split("|") ?? [], [type]);
 
   if (!showHiddenOutputs && hidden) return <></>;
   if (!showNode) return <>{Handle}</>;
@@ -399,7 +403,7 @@ function NodeOutputField({
               proxy={outputProxy}
               outputs={outputs}
               idx={index}
-              types={type?.split("|") ?? []}
+              types={memoizedType}
               selected={
                 data.node?.outputs![index].selected ??
                 data.node?.outputs![index].types[0] ??

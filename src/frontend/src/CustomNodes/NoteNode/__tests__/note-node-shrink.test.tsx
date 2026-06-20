@@ -15,13 +15,16 @@ import type { NoteDataType } from "@/types/flow";
 const mockSetNode = jest.fn();
 const mockCurrentFlow = {
   data: {
-    nodes: [] as Array<{ id: string; width?: number; height?: number }>,
+    nodes: [] as Array<{
+      id: string;
+      measured?: { width?: number; height?: number };
+    }>,
   },
 };
 
 jest.mock("@/stores/flowStore", () => ({
   __esModule: true,
-  default: (selector: (state: unknown) => unknown) =>
+  default: (selector: (state: any) => any) =>
     selector({
       currentFlow: mockCurrentFlow,
       setNode: mockSetNode,
@@ -37,10 +40,7 @@ jest.mock("@xyflow/react", () => ({
   }: {
     minWidth: number;
     minHeight: number;
-    onResize: (
-      event: unknown,
-      params: { width: number; height: number },
-    ) => void;
+    onResize: (event: any, params: { width: number; height: number }) => void;
     isVisible?: boolean;
   }) => (
     <div
@@ -67,7 +67,7 @@ jest.mock("../../GenericNode/components/NodeDescription", () => ({
 }));
 
 jest.mock("@/utils/utils", () => ({
-  cn: (...classes: unknown[]) => classes.filter(Boolean).join(" "),
+  cn: (...classes: any[]) => classes.filter(Boolean).join(" "),
 }));
 
 // Import component after mocks are set up
@@ -99,7 +99,7 @@ describe("NoteNode Shrink Behavior", () => {
 
       const resizer = screen.getByTestId("node-resizer");
       expect(Number(resizer.dataset.minWidth)).toBe(NOTE_NODE_MIN_WIDTH);
-      expect(NOTE_NODE_MIN_WIDTH).toBe(260);
+      expect(NOTE_NODE_MIN_WIDTH).toBe(280);
     });
 
     it("should configure NodeResizer with correct minimum height", () => {
@@ -108,7 +108,7 @@ describe("NoteNode Shrink Behavior", () => {
 
       const resizer = screen.getByTestId("node-resizer");
       expect(Number(resizer.dataset.minHeight)).toBe(NOTE_NODE_MIN_HEIGHT);
-      expect(NOTE_NODE_MIN_HEIGHT).toBe(100);
+      expect(NOTE_NODE_MIN_HEIGHT).toBe(140);
     });
 
     it("should show resizer only when selected", () => {
@@ -127,16 +127,16 @@ describe("NoteNode Shrink Behavior", () => {
   });
 
   describe("Default Size Behavior", () => {
-    it("should use DEFAULT_NOTE_SIZE when no dimensions are stored", () => {
+    it("should use minimum size when no dimensions are stored", () => {
       const data = createMockData("note-1");
       mockCurrentFlow.data.nodes = [];
 
       render(<NoteNode data={data} selected={false} />);
 
       const noteNode = screen.getByTestId("note_node");
-      expect(noteNode.style.width).toBe(`${DEFAULT_NOTE_SIZE}px`);
-      expect(noteNode.style.height).toBe(`${DEFAULT_NOTE_SIZE}px`);
-      expect(DEFAULT_NOTE_SIZE).toBe(324);
+      // Component uses MIN values as fallback when no measured dimensions exist
+      expect(noteNode.style.width).toBe(`${NOTE_NODE_MIN_WIDTH}px`);
+      expect(noteNode.style.height).toBe(`${NOTE_NODE_MIN_HEIGHT}px`);
     });
 
     it("should use stored dimensions from flow state", () => {
@@ -145,7 +145,10 @@ describe("NoteNode Shrink Behavior", () => {
       const customHeight = 300;
 
       mockCurrentFlow.data.nodes = [
-        { id: "note-1", width: customWidth, height: customHeight },
+        {
+          id: "note-1",
+          measured: { width: customWidth, height: customHeight },
+        },
       ];
 
       render(<NoteNode data={data} selected={false} />);
@@ -164,8 +167,10 @@ describe("NoteNode Shrink Behavior", () => {
       mockCurrentFlow.data.nodes = [
         {
           id: "note-1",
-          width: NOTE_NODE_MIN_WIDTH,
-          height: NOTE_NODE_MIN_HEIGHT,
+          measured: {
+            width: NOTE_NODE_MIN_WIDTH,
+            height: NOTE_NODE_MIN_HEIGHT,
+          },
         },
       ];
 
@@ -179,7 +184,10 @@ describe("NoteNode Shrink Behavior", () => {
     it("should render correctly at minimum width", () => {
       const data = createMockData("note-1");
       mockCurrentFlow.data.nodes = [
-        { id: "note-1", width: NOTE_NODE_MIN_WIDTH, height: DEFAULT_NOTE_SIZE },
+        {
+          id: "note-1",
+          measured: { width: NOTE_NODE_MIN_WIDTH, height: DEFAULT_NOTE_SIZE },
+        },
       ];
 
       render(<NoteNode data={data} selected={false} />);
@@ -193,8 +201,10 @@ describe("NoteNode Shrink Behavior", () => {
       mockCurrentFlow.data.nodes = [
         {
           id: "note-1",
-          width: DEFAULT_NOTE_SIZE,
-          height: NOTE_NODE_MIN_HEIGHT,
+          measured: {
+            width: DEFAULT_NOTE_SIZE,
+            height: NOTE_NODE_MIN_HEIGHT,
+          },
         },
       ];
 

@@ -45,7 +45,7 @@ DEFAULT_FIELDS = ["mode"]
 class APIRequestComponent(Component):
     display_name = "API Request"
     description = "Make HTTP requests using URL or cURL commands."
-    documentation: str = "https://docs-primeagent.khulnasoft.com/api-request"
+    documentation: str = "https://docs.prime.khulnasoft.com/api-request"
     icon = "Globe"
     name = "APIRequest"
 
@@ -321,10 +321,12 @@ class APIRequestComponent(Component):
                 "method": method,
                 "url": url,
                 "headers": headers,
-                "json": processed_body,
                 "timeout": timeout,
                 "follow_redirects": follow_redirects,
             }
+            # Only include body for methods that support it (GET must not have a body per HTTP spec)
+            if method in {"POST", "PATCH", "PUT", "DELETE"} and processed_body is not None:
+                request_params["json"] = processed_body
             response = await client.request(**request_params)
 
             redirection_history = [

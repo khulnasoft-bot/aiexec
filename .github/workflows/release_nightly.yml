@@ -106,7 +106,7 @@ jobs:
       # PyPI publishing moved to after cross-platform testing
 
       - name: Upload WFX Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dist-nightly-wfx
           path: src/wfx/dist
@@ -135,20 +135,34 @@ jobs:
           cache-dependency-glob: "uv.lock"
           python-version: ${{ env.PYTHON_VERSION }}
           prune-cache: false
+
+      - name: Download WFX artifact
+        if: inputs.build_wfx
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-nightly-wfx
+          path: wfx-dist
+
       - name: Install the project
         run: uv sync
 
-      - name: Wait for PyPI Propagation
+      - name: Force reinstall WFX from built wheel
         if: inputs.build_wfx
-        run: sleep 300 # wait for 5 minutes to ensure PyPI propagation of WFX
+        run: |
+          echo "Installing WFX from built wheel to test the actual distribution package..."
+          # While workspace resolution installs from source, we want to test the exact
+          # wheel that will be published to PyPI to catch any packaging issues
+          uv pip install --force-reinstall --no-deps wfx-dist/*.whl
 
       - name: Verify Nightly Name and Version
         id: verify
         run: |
           name=$(uv tree | grep 'primeagent-base' | awk '{print $2}' | head -n 1)
           version=$(uv tree | grep 'primeagent-base' | awk '{print $3}' | head -n 1)
-          if [ "$name" != "primeagent-base-nightly" ]; then
-            echo "Name $name does not match primeagent-base-nightly. Exiting the workflow."
+          # Strip extras from package name (e.g., "primeagent-base-nightly[complete]" -> "primeagent-base-nightly")
+          name_without_extras=$(echo $name | sed 's/\[.*\]//')
+          if [ "$name_without_extras" != "primeagent-base-nightly" ]; then
+            echo "Name $name_without_extras does not match primeagent-base-nightly. Exiting the workflow."
             exit 1
           fi
           if [ "$version" != "${{ inputs.nightly_tag_base }}" ]; then
@@ -170,7 +184,9 @@ jobs:
           # TODO: Unsure why the whl is not built in src/backend/base/dist
           mkdir src/backend/base/dist
           mv dist/*.whl src/backend/base/dist/
-          uv pip install src/backend/base/dist/*.whl
+          # Install with [complete] extra to test all optional dependencies
+          WHEEL_FILE=$(ls src/backend/base/dist/*.whl)
+          uv pip install "${WHEEL_FILE}[complete]"
           uv run python -m primeagent run --host localhost --port 7860 --backend-only &
           SERVER_PID=$!
           # Wait for the server to start
@@ -189,7 +205,7 @@ jobs:
       # PyPI publishing moved to after cross-platform testing
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dist-nightly-base
           path: src/backend/base/dist
@@ -216,8 +232,33 @@ jobs:
           cache-dependency-glob: "uv.lock"
           python-version: ${{ env.PYTHON_VERSION }}
           prune-cache: false
+
+      - name: Download WFX artifact
+        if: inputs.build_wfx
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-nightly-wfx
+          path: wfx-dist
+
+      - name: Download base artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-nightly-base
+          path: base-dist
+
       - name: Install the project
         run: uv sync
+
+      - name: Force reinstall packages from built wheels
+        run: |
+          # While workspace resolution installs from source, we want to test the exact
+          # wheels that will be published to PyPI to catch any packaging issues
+          if [ "${{ inputs.build_wfx }}" == "true" ]; then
+            echo "Installing WFX from built wheel..."
+            uv pip install --force-reinstall --no-deps wfx-dist/*.whl
+          fi
+          echo "Installing primeagent-base from built wheel..."
+          uv pip install --force-reinstall --no-deps base-dist/*.whl
 
       - name: Verify Nightly Name and Version
         id: verify
@@ -262,7 +303,7 @@ jobs:
       # PyPI publishing moved to after cross-platform testing
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dist-nightly-main
           path: dist
@@ -288,7 +329,7 @@ jobs:
           ref: ${{ inputs.nightly_tag_main }}
           persist-credentials: true
       - name: Download WFX artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: dist-nightly-wfx
           path: src/wfx/dist
@@ -316,7 +357,7 @@ jobs:
           ref: ${{ inputs.nightly_tag_main }}
           persist-credentials: true
       - name: Download base artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: dist-nightly-base
           path: src/backend/base/dist
@@ -344,7 +385,7 @@ jobs:
           ref: ${{ inputs.nightly_tag_main }}
           persist-credentials: true
       - name: Download main artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: dist-nightly-main
           path: dist
@@ -394,13 +435,13 @@ jobs:
   #     main_version: ${{ inputs.nightly_tag_main }}
   #   secrets: inherit
 
-  call_docker_build_main_ep:
-    name: Call Docker Build Workflow for Primeagent with Entrypoint
-    if: ${{ always() && inputs.build_docker_ep }}
-    needs: [build-nightly-main, call_docker_build_main]
-    uses: ./.github/workflows/docker-build-v2.yml
-    with:
-      ref: ${{ inputs.nightly_tag_main }}
-      release_type: main-ep
-      push_to_registry: ${{ inputs.push_to_registry }}
-    secrets: inherit
+  # call_docker_build_main_ep:
+  #   name: Call Docker Build Workflow for Primeagent with Entrypoint
+  #   if: ${{ always() && inputs.build_docker_ep }}
+  #   needs: [build-nightly-main, call_docker_build_main]
+  #   uses: ./.github/workflows/docker-build-v2.yml
+  #   with:
+  #     ref: ${{ inputs.nightly_tag_main }}
+  #     release_type: main-ep
+  #     push_to_registry: ${{ inputs.push_to_registry }}
+  #   secrets: inherit

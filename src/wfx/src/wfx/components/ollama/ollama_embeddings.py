@@ -7,7 +7,7 @@ from langchain_ollama import OllamaEmbeddings
 
 from wfx.base.models.model import LCModelComponent
 from wfx.field_typing import Embeddings
-from wfx.io import DropdownInput, MessageTextInput, Output, SecretStrInput
+from wfx.io import DropdownInput, Output, SecretStrInput, StrInput
 from wfx.log.logger import logger
 from wfx.utils.util import transform_localhost_url
 
@@ -38,7 +38,7 @@ class OllamaEmbeddingsComponent(LCModelComponent):
             combobox=True,
             required=True,
         ),
-        MessageTextInput(
+        StrInput(
             name="base_url",
             display_name="Ollama Base URL",
             info="Endpoint of the Ollama API. Defaults to http://localhost:11434.",

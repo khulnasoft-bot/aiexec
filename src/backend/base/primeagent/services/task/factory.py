@@ -1,4 +1,5 @@
 from typing_extensions import override
+from wfx.services.settings.service import SettingsService
 
 from primeagent.services.factory import ServiceFactory
 from primeagent.services.task.service import TaskService
@@ -9,6 +10,5 @@ class TaskServiceFactory(ServiceFactory):
         super().__init__(TaskService)
 
     @override
-    def create(self):
-        # Here you would have logic to create and configure a TaskService
-        return TaskService()
+    def create(self, settings_service: SettingsService):
+        return TaskService(settings_service)

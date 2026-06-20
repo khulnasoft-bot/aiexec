@@ -34,18 +34,13 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.ref }}
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
       - name: Setup Node.js Environment
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         id: setup-node
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "pnpm"
-          cache-dependency-path: ./src/frontend/pnpm-lock.yaml
+          cache: "npm"
+          cache-dependency-path: ./src/frontend/package-lock.json
 
       - name: Run Frontend Unit Tests
         run: make test_frontend_ci
@@ -84,7 +79,7 @@ jobs:
           directory: src/frontend/coverage/
 
       - name: Upload Coverage Reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: frontend-coverage-report

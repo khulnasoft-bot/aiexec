@@ -23,7 +23,7 @@ test(
     await page.getByTestId("sidebar-custom-component-button").click();
 
     await page.getByTestId("div-generic-node").click();
-    await page.getByTestId("code-button-modal").click();
+    await page.getByTestId("code-button-modal").last().click();
 
     const customCodeWithError = `
 # from primeagent.field_typing import Data
@@ -35,7 +35,7 @@ import pytorch
 class CustomComponent(Component):
     display_name = "Custom Component"
     description = "Use as a template to create your own component."
-    documentation: str = "https://docs-primeagent.khulnasoft.com/components-custom-components"
+    documentation: str = "https://docs.prime.khulnasoft.com/components-custom-components"
     icon = "custom_components"
     name = "CustomComponent"
 
