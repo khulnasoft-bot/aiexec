@@ -1,15 +1,17 @@
 import type { CustomCellRendererProps } from "ag-grid-react";
+import { useTranslation } from "react-i18next";
 import useHandleOnNewValue from "@/CustomNodes/hooks/use-handle-new-value";
 import ShadTooltip from "@/components/common/shadTooltipComponent";
 import useFlowStore from "@/stores/flowStore";
 import { useTweaksStore } from "@/stores/tweaksStore";
 import type { APIClassType } from "@/types/api";
 import { isTargetHandleConnected } from "@/utils/reactflowUtils";
-import ToggleShadComponent from "../../../toggleShadComponent";
+import VisibilityToggleButton from "./VisibilityToggleButton";
 
 export default function TableAdvancedToggleCellRender({
   value: { nodeId, parameterId, isTweaks },
 }: CustomCellRendererProps) {
+  const { t } = useTranslation();
   const edges = useFlowStore((state) => state.edges);
   const node = isTweaks
     ? useTweaksStore((state) => state.getNode(nodeId))
@@ -38,22 +40,20 @@ export default function TableAdvancedToggleCellRender({
         content={
           disabled
             ? isTweaks
-              ? "Cannot enable input of connected handles"
-              : "Cannot change visibility of connected handles"
+              ? t("editNode.tooltipCannotEnableInput")
+              : t("editNode.tooltipCannotChangeVisibility")
             : isTweaks
-              ? "Toggle input of the field in the API"
-              : "Change visibility of the field"
+              ? t("editNode.tooltipToggleInput")
+              : t("editNode.tooltipChangeVisibility")
         }
         styleClasses="z-50"
       >
         <div className="flex h-full w-full items-center justify-center">
-          <ToggleShadComponent
-            disabled={disabled}
-            value={!parameter.advanced}
-            handleOnNewValue={handleOnNewValue}
-            editNode={true}
-            showToogle
+          <VisibilityToggleButton
             id={"show" + parameterId}
+            checked={!parameter.advanced}
+            disabled={disabled}
+            onToggle={() => handleOnNewValue({ advanced: !parameter.advanced })}
           />
         </div>
       </ShadTooltip>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import ShadTooltip from "@/components/common/shadTooltipComponent";
 import {
@@ -31,6 +32,7 @@ export interface SessionMoreMenuProps {
   // Controlled state props
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  isDefaultSession?: boolean;
 }
 
 const DEFAULT_SIDE_OFFSET = 4;
@@ -43,6 +45,7 @@ export function SessionMoreMenu({
   showMessageLogs = true,
   showRename = true,
   showDelete = true,
+  isDefaultSession = false,
   showClearChat = false,
   side = "bottom",
   align = "end",
@@ -56,6 +59,7 @@ export function SessionMoreMenu({
   open: controlledOpen,
   onOpenChange: controlledOnOpenChange,
 }: SessionMoreMenuProps) {
+  const { t } = useTranslation();
   const [selectValue, setSelectValue] = useState("");
   const [internalOpen, setInternalOpen] = useState(false);
 
@@ -134,7 +138,7 @@ export function SessionMoreMenu({
                   name="SquarePen"
                   className="mr-2 h-4 w-4"
                 />
-                Rename
+                {t("playgroundComponent.rename")}
               </div>
             </SelectItem>
           )}
@@ -149,7 +153,7 @@ export function SessionMoreMenu({
                   name="Scroll"
                   className="mr-2 h-4 w-4"
                 />
-                Message logs
+                {t("playgroundComponent.messageLogs")}
               </div>
             </SelectItem>
           )}
@@ -161,7 +165,7 @@ export function SessionMoreMenu({
             >
               <div className="flex items-center text-status-red hover:text-status-red">
                 <ForwardedIconComponent name="X" className="mr-2 h-4 w-4" />
-                Clear chat
+                {t("playgroundComponent.clearChat")}
               </div>
             </SelectItem>
           )}
@@ -176,7 +180,9 @@ export function SessionMoreMenu({
                   name="Trash2"
                   className="mr-2 h-4 w-4"
                 />
-                Delete
+                {isDefaultSession
+                  ? t("playgroundComponent.clearSession")
+                  : t("playgroundComponent.deleteSession")}
               </div>
             </SelectItem>
           )}

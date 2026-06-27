@@ -13,13 +13,22 @@ const IMAGE_TYPES = new Set([
   "image",
 ]);
 
+export function isAbsoluteUrl(value: string): boolean {
+  return (
+    value.startsWith("http://") ||
+    value.startsWith("https://") ||
+    value.startsWith("data:") ||
+    value.startsWith("blob:")
+  );
+}
+
 /**
  * Check if a file is an image based on its type
  * @param file - Can be a File object, file type string, or file path string
  * @returns true if the file is an image
  */
 export function isImageFile(
-  file: File | { type: string } | { path: string; type: string } | string,
+  file: File | { type?: string } | { path: string; type?: string } | string,
 ): boolean {
   if (file instanceof File) {
     // Browser File object
@@ -29,14 +38,18 @@ export function isImageFile(
       IMAGE_TYPES.has(fileType.split("/").pop() || "")
     );
   } else if (typeof file === "string") {
-    // File path string - extract extension
-    const extension = file.split(".").pop()?.toLowerCase() || "";
+    // File path or URL string - extract extension
+    // Normalize Windows paths first
+    const normalizedPath = file.replace(/\\/g, "/");
+    const extension = normalizedPath.split(".").pop()?.toLowerCase() || "";
     return IMAGE_TYPES.has(extension);
   } else if (file && typeof file === "object") {
     // Object with type or path property
     // For server files, check path extension first (most reliable)
     if ("path" in file && file.path) {
-      const extension = file.path.split(".").pop()?.toLowerCase() || "";
+      // Normalize Windows paths first
+      const normalizedPath = file.path.replace(/\\/g, "/");
+      const extension = normalizedPath.split(".").pop()?.toLowerCase() || "";
       if (IMAGE_TYPES.has(extension)) {
         return true;
       }
@@ -59,17 +72,19 @@ export function isImageFile(
  * @returns The file name
  */
 export function getFileDisplayName(
-  file: File | { name: string } | { path: string; name: string } | string,
+  file: File | { name?: string } | { path: string; name?: string } | string,
 ): string {
   if (file instanceof File) {
     return file.name;
   } else if (typeof file === "string") {
-    // Extract name from path
-    return file.split("/").pop() || file;
-  } else if ("name" in file) {
+    // Extract name from path (normalize Windows paths first)
+    const normalizedPath = file.replace(/\\/g, "/");
+    return normalizedPath.split("/").pop() || file;
+  } else if ("name" in file && file.name) {
     return file.name;
   } else if ("path" in file) {
-    return file.path.split("/").pop() || file.path;
+    const normalizedPath = file.path.replace(/\\/g, "/");
+    return normalizedPath.split("/").pop() || file.path;
   }
   return "";
 }
@@ -80,10 +95,13 @@ export function getFileDisplayName(
  * @param maxLength - Maximum length before truncation (default: 25)
  * @returns Formatted file name
  */
-export function formatFileName(name: string, maxLength: number = 25): string {
-  if (name[maxLength] === undefined) {
-    return name;
-  }
+
+export function formatFileName(
+  name?: string | null,
+  maxLength: number = 25,
+): string {
+  if (!name) return "";
+  if (name.length <= maxLength) return name;
   const fileExtension = name.split(".").pop(); // Get the file extension
   const baseName = name.slice(0, name.lastIndexOf(".")); // Get the base name without the extension
   if (baseName.length > 6) {
@@ -98,37 +116,53 @@ export function formatFileName(name: string, maxLength: number = 25): string {
  * @returns Preview URL or null if not an image
  */
 export function getFilePreviewUrl(
-  file: File | { path: string; type: string } | string,
+  file: File | { path: string; type?: string } | string,
 ): string | null {
   if (!isImageFile(file)) {
     return null;
   }
 
+  const normalizePath = (value: string): string | null => {
+    const normalized = value.trim().replace(/\\/g, "/");
+    return normalized.length > 0 ? normalized : null;
+  };
+
   if (file instanceof File) {
     // Browser File object - create object URL
     return URL.createObjectURL(file);
   } else if (typeof file === "string") {
-    // Server file path string - path format is "flow_id/filename"
-    // Encode each path segment to handle spaces and special characters
-    const path = file.trim();
-    if (!path) return null;
-    const encodedPath = path
+    const normalizedPath = normalizePath(file);
+    if (!normalizedPath) return null;
+
+    if (isAbsoluteUrl(normalizedPath)) {
+      return normalizedPath;
+    }
+
+    const encodedPath = normalizedPath
       .split("/")
       .map((segment) => encodeURIComponent(segment))
       .join("/");
     // Explicitly use /api/v1/files/images/ prefix for server file paths
-    return `${getBaseUrl()}files/images/${encodedPath}`;
+    const baseUrl = getBaseUrl();
+    const baseUrlWithSlash = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
+    return `${baseUrlWithSlash}files/images/${encodedPath}`;
   } else if ("path" in file) {
-    // Server file path object - path format is "flow_id/filename"
-    // Encode each path segment to handle spaces and special characters
-    const path = file.path.trim();
-    if (!path) return null;
-    const encodedPath = path
+    const normalizedPath = normalizePath(file.path);
+    if (!normalizedPath) return null;
+
+    if (isAbsoluteUrl(normalizedPath)) {
+      return normalizedPath;
+    }
+
+    const encodedPath = normalizedPath
       .split("/")
       .map((segment) => encodeURIComponent(segment))
       .join("/");
     // Explicitly use /api/v1/files/images/ prefix for server file paths
-    return `${getBaseUrl()}files/images/${encodedPath}`;
+    const baseUrl = getBaseUrl();
+    const baseUrlWithSlash = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
+    const url = `${baseUrlWithSlash}files/images/${encodedPath}`;
+    return url;
   }
 
   return null;
@@ -140,7 +174,7 @@ export function getFilePreviewUrl(
  * @returns Object with name, type, and path
  */
 export function extractFileInfo(
-  file: File | { path: string; type: string; name: string } | string,
+  file: File | { path: string; type?: string; name?: string } | string,
 ): { name: string; type: string; path: string } {
   if (file instanceof File) {
     return {
@@ -149,14 +183,17 @@ export function extractFileInfo(
       path: file.name, // For File objects, path is just the name
     };
   } else if (typeof file === "string") {
-    const name = file.split("/").pop() || file;
-    const type = file.split(".").pop() || "";
+    const normalizedPath = file.replace(/\\/g, "/");
+    const name = normalizedPath.split("/").pop() || file;
+    const type = normalizedPath.split(".").pop() || "";
     return { name, type, path: file };
   } else {
+    const normalizedPath = (file.path || "").replace(/\\/g, "/");
+    const nameFromPath = normalizedPath.split("/").pop() || file.path || "";
     return {
-      name: file.name,
-      type: file.type,
-      path: file.path,
+      name: file.name || nameFromPath,
+      type: file.type || normalizedPath.split(".").pop() || "",
+      path: file.path || "",
     };
   }
 }

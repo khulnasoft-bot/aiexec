@@ -1,9 +1,9 @@
+import { RefObject } from "react";
+import { useTranslation } from "react-i18next";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import { Button } from "@/components/ui/button";
 import { PopoverTrigger } from "@/components/ui/popover";
-import { RECEIVING_INPUT_VALUE } from "@/constants/constants";
 import { cn } from "@/utils/utils";
-import { RefObject } from "react";
 import { ModelOption, SelectedModel } from "../types";
 
 interface ModelTriggerProps {
@@ -16,6 +16,7 @@ interface ModelTriggerProps {
   onOpenManageProviders: () => void;
   id: string;
   refButton: RefObject<HTMLButtonElement | null>;
+  showEmptyState?: boolean;
 }
 
 const ModelTrigger = ({
@@ -28,7 +29,9 @@ const ModelTrigger = ({
   onOpenManageProviders,
   id,
   refButton,
+  showEmptyState = false,
 }: ModelTriggerProps) => {
+  const { t } = useTranslation();
   const renderSelectedIcon = () => {
     if (disabled || options.length === 0) {
       return null;
@@ -42,16 +45,26 @@ const ModelTrigger = ({
     ) : null;
   };
 
-  if (!hasEnabledProviders) {
+  // Check if we're in empty state mode (showEmptyState=true and no options)
+  const isEmptyStateMode = showEmptyState && options.length === 0;
+
+  if (!hasEnabledProviders && !showEmptyState && options.length === 0) {
     return (
       <Button
-        variant="default"
-        size="sm"
-        className="w-full"
+        variant="outline"
+        size="xs"
+        className="dropdown-component-false-outline w-full justify-start gap-2 py-2 font-normal"
         onClick={onOpenManageProviders}
       >
-        <ForwardedIconComponent name="Brain" className="h-4 w-4" />
-        <div className="text-[13px]">{placeholder}</div>
+        <ForwardedIconComponent
+          name="BrainCircuit"
+          className="h-4 w-4 flex-shrink-0 text-muted-foreground"
+        />
+        <div className="text-[13px] text-muted-foreground">
+          {placeholder === "Setup Provider"
+            ? t("model.setupProvider")
+            : placeholder}
+        </div>
       </Button>
     );
   }
@@ -60,7 +73,7 @@ const ModelTrigger = ({
     <div className="flex w-full flex-col">
       <PopoverTrigger asChild>
         <Button
-          disabled={disabled || options.length === 0}
+          disabled={disabled}
           variant="primary"
           size="xs"
           role="combobox"
@@ -79,7 +92,11 @@ const ModelTrigger = ({
             {renderSelectedIcon()}
             <span className="truncate">
               {disabled ? (
-                RECEIVING_INPUT_VALUE
+                t("component.receivingInput")
+              ) : isEmptyStateMode ? (
+                <div className="truncate text-muted-foreground">
+                  {t("model.noModelsEnabled")}
+                </div>
               ) : (
                 <div
                   className={cn(
@@ -87,7 +104,7 @@ const ModelTrigger = ({
                     !selectedModel?.name && "text-muted-foreground",
                   )}
                 >
-                  {selectedModel?.name || "Select a model"}
+                  {selectedModel?.name || t("model.selectModel")}
                 </div>
               )}
             </span>

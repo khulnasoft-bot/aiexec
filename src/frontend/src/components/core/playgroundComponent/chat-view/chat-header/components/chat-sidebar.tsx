@@ -1,10 +1,12 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import ShadTooltip from "@/components/common/shadTooltipComponent";
 import { Button } from "@/components/ui/button";
+import useAlertStore from "@/stores/alertStore";
 import useFlowStore from "@/stores/flowStore";
+import { cn } from "@/utils/utils";
 import { useGetFlowId } from "../../../hooks/use-get-flow-id";
-import { useEditSessionInfo } from "../hooks/use-edit-session-info";
 import { SessionSelector } from "./session-selector";
 
 interface ChatSidebarProps {
@@ -14,7 +16,8 @@ interface ChatSidebarProps {
   currentSessionId?: string;
   onDeleteSession?: (sessionId: string) => void;
   onOpenLogs?: (sessionId: string) => void;
-  renameLocalSession?: (oldSessionId: string, newSessionId: string) => void;
+  onRenameSession?: (oldId: string, newId: string) => Promise<void>;
+  onBulkDeleteSessions?: (sessionIds: string[], onSuccess: () => void) => void;
 }
 
 export function ChatSidebar({
@@ -24,31 +27,86 @@ export function ChatSidebar({
   currentSessionId,
   onDeleteSession,
   onOpenLogs,
-  renameLocalSession,
+  onRenameSession,
+  onBulkDeleteSessions,
 }: ChatSidebarProps) {
+  const { t } = useTranslation();
   const [openMenuSession, setOpenMenuSession] = useState<string | null>(null);
+  const [selectedSessions, setSelectedSessions] = useState<Set<string>>(
+    new Set(),
+  );
   const currentFlowId = useGetFlowId();
   const isShareablePlayground = useFlowStore((state) => state.playgroundPage);
-  const { handleDelete, handleRename } = useEditSessionInfo({
-    flowId: currentFlowId,
-    renameLocalSession,
-  });
+  const setSuccessData = useAlertStore((state) => state.setSuccessData);
 
-  const sessionIds = useMemo(() => sessions, [sessions]);
+  // Filter out the default session (currentFlowId) from selectable sessions
+  const selectableSessions = useMemo(
+    () => sessions.filter((session) => session !== currentFlowId),
+    [sessions, currentFlowId],
+  );
 
   const visibleSession = currentSessionId;
 
+  // Check if all selectable sessions are selected
+  const allSelected =
+    selectableSessions.length > 0 &&
+    selectableSessions.every((session) => selectedSessions.has(session));
+
   const handleDeleteSession = (session: string) => {
-    handleDelete(session);
     onDeleteSession?.(session);
-    // If deleted session was the current one, switch to default
-    if (session === currentSessionId) {
-      onSessionSelect?.(currentFlowId);
-    }
+    // Remove from selected sessions if it was selected
+    setSelectedSessions((prev) => {
+      const newSet = new Set(prev);
+      newSet.delete(session);
+      return newSet;
+    });
+    // Session switching is handled by the store's removeSession
   };
 
   const handleSessionClick = (session: string) => {
     onSessionSelect?.(session);
+  };
+
+  const handleRename = async (sessionId: string, newSessionId: string) => {
+    await onRenameSession?.(sessionId, newSessionId);
+  };
+
+  const handleSelectAll = () => {
+    if (allSelected) {
+      // Deselect all
+      setSelectedSessions(new Set());
+    } else {
+      // Select all selectable sessions
+      setSelectedSessions(new Set(selectableSessions));
+    }
+  };
+
+  const handleToggleSession = (session: string) => {
+    setSelectedSessions((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(session)) {
+        newSet.delete(session);
+      } else {
+        newSet.add(session);
+      }
+      return newSet;
+    });
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedSessions.size === 0 || !onBulkDeleteSessions) return;
+
+    const sessionsToDelete = Array.from(selectedSessions);
+    const count = sessionsToDelete.length;
+
+    onBulkDeleteSessions(sessionsToDelete, () => {
+      // Clear selection after successful deletion
+      setSelectedSessions(new Set());
+      // Show user-friendly success message
+      setSuccessData({
+        title: t("chat.sessionsDeletedSuccess", { count }),
+      });
+    });
   };
 
   return (
@@ -56,11 +114,11 @@ export function ChatSidebar({
       <div className="flex flex-col">
         <div className="flex h-4 items-center justify-between">
           <div className="px-2 text-xs font-semibold leading-4 text-muted-foreground">
-            Sessions
+            {t("chat.sessions")}
           </div>
           <ShadTooltip
             styleClasses="z-50"
-            content="New Chat"
+            content={t("chat.newChat")}
             side={isShareablePlayground ? "bottom" : "top"}
           >
             <Button
@@ -77,35 +135,93 @@ export function ChatSidebar({
           </ShadTooltip>
         </div>
       </div>
-      {sessionIds.length === 0 ? (
+      {sessions.length === 0 ? (
         <div className="p-4 text-sm text-muted-foreground">
-          No sessions yet.
+          {t("chat.noSessionsYet")}
         </div>
       ) : (
         <div className="flex flex-col gap-1">
-          {sessionIds.map((session, index) => (
-            <SessionSelector
-              key={session}
-              session={session}
-              currentFlowId={currentFlowId}
-              deleteSession={handleDeleteSession}
-              toggleVisibility={() => handleSessionClick(session)}
-              isVisible={visibleSession === session}
-              updateVisibleSession={handleSessionClick}
-              inspectSession={onOpenLogs}
-              handleRename={handleRename}
-              setActiveSession={() => {
-                // TODO: Implement active session
-              }}
-              selectedView={undefined}
-              setSelectedView={() => {}}
-              playgroundPage={true}
-              menuOpen={openMenuSession === session}
-              onMenuOpenChange={(open) => {
-                setOpenMenuSession(open ? session : null);
-              }}
-            />
-          ))}
+          {sessions.map((session, index) => {
+            const isFirstNonDefaultSession =
+              index > 0 && sessions[index - 1] === currentFlowId;
+
+            return (
+              <div key={session}>
+                {/* Show Select All controls after the default session.
+                    Wrapper is sized + padded to mirror a SessionSelector
+                    row (h-8, no extra vertical padding) so the trash
+                    button lines up vertically and horizontally with the
+                    `⋮` MoreMenu triggers in the session rows below. */}
+                {isFirstNonDefaultSession && selectableSessions.length > 0 && (
+                  <div className="flex h-8 items-center justify-between">
+                    <button
+                      type="button"
+                      className="flex items-center gap-2 cursor-pointer px-2 bg-transparent border-0 p-0"
+                      onClick={handleSelectAll}
+                      aria-pressed={allSelected}
+                      data-testid="select-all-checkbox"
+                    >
+                      <div className="flex items-center justify-center w-4 h-4 flex-shrink-0">
+                        <ForwardedIconComponent
+                          name={allSelected ? "SquareCheck" : "Square"}
+                          className={cn(
+                            "h-4 w-4",
+                            allSelected
+                              ? "text-status-red"
+                              : "text-muted-foreground",
+                          )}
+                        />
+                      </div>
+                      <span className="text-sm text-muted-foreground select-none">
+                        {t("chat.selectAll")}
+                      </span>
+                    </button>
+                    {selectedSessions.size > 0 && (
+                      <ShadTooltip
+                        styleClasses="z-50"
+                        content={t("chat.deleteSessionsCount", {
+                          count: selectedSessions.size,
+                        })}
+                        side="top"
+                      >
+                        <Button
+                          data-testid="bulk-delete-button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 p-2 rounded text-status-red hover:text-status-red hover:bg-error-background"
+                          onClick={handleBulkDelete}
+                        >
+                          <ForwardedIconComponent
+                            name="Trash2"
+                            className="h-4 w-4"
+                          />
+                        </Button>
+                      </ShadTooltip>
+                    )}
+                  </div>
+                )}
+                <SessionSelector
+                  session={session}
+                  currentFlowId={currentFlowId}
+                  deleteSession={handleDeleteSession}
+                  toggleVisibility={() => handleSessionClick(session)}
+                  isVisible={visibleSession === session}
+                  updateVisibleSession={handleSessionClick}
+                  inspectSession={onOpenLogs}
+                  handleRename={handleRename}
+                  selectedView={undefined}
+                  setSelectedView={() => {}}
+                  menuOpen={openMenuSession === session}
+                  onMenuOpenChange={(open) => {
+                    setOpenMenuSession(open ? session : null);
+                  }}
+                  isSelected={selectedSessions.has(session)}
+                  onToggleSelect={() => handleToggleSession(session)}
+                  showCheckbox={selectableSessions.includes(session)}
+                />
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
