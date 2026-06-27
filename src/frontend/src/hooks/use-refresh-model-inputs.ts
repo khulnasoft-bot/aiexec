@@ -3,21 +3,31 @@ import { useCallback, useRef } from "react";
 import { api } from "@/controllers/API/api";
 import { getURL } from "@/controllers/API/helpers/constants";
 import useAlertStore from "@/stores/alertStore";
-import useFlowStore from "@/stores/flowStore";
+import useFlowStore, { syncNodeTranslations } from "@/stores/flowStore";
 import useFlowsManagerStore from "@/stores/flowsManagerStore";
+import { useUtilityStore } from "@/stores/utilityStore";
 import type {
   APIClassType,
   APITemplateType,
   ModelOptionType,
 } from "@/types/api";
 import type { AllNodeType } from "@/types/flow";
+import {
+  isCustomComponentBlockError,
+  isNodeOutdated,
+} from "@/utils/customComponentGuards";
+import i18n from "../i18n";
 
 export interface RefreshOptions {
   silent?: boolean;
 }
 
-// Prevents concurrent refresh operations
+// Prevents concurrent refresh operations; queues the latest request if busy
 let isRefreshInProgress = false;
+let pendingRefresh: {
+  queryClient?: QueryClient;
+  options?: RefreshOptions;
+} | null = null;
 
 /** Checks if a node has a model-type input field */
 export function isModelNode(node: AllNodeType): boolean {
@@ -25,6 +35,7 @@ export function isModelNode(node: AllNodeType): boolean {
   const template = node.data?.node?.template;
   if (!template) return false;
 
+  // biome-ignore lint/suspicious/noExplicitAny: legacy
   return Object.values(template).some((field: any) => field?.type === "model");
 }
 
@@ -40,6 +51,7 @@ export function buildRefreshPayload(
   template: APITemplateType,
   flowId: string | undefined,
   folderId: string | undefined,
+  // biome-ignore lint/suspicious/noExplicitAny: legacy
 ): Record<string, any> {
   return {
     ...template,
@@ -73,7 +85,11 @@ export async function refreshAllModelInputs(
   queryClient?: QueryClient,
   options?: RefreshOptions,
 ): Promise<void> {
-  if (isRefreshInProgress) return;
+  if (isRefreshInProgress) {
+    // Queue the latest request so it runs after the current one finishes
+    pendingRefresh = { queryClient, options };
+    return;
+  }
   isRefreshInProgress = true;
 
   const { setSuccessData, setErrorData } = useAlertStore.getState();
@@ -86,17 +102,20 @@ export async function refreshAllModelInputs(
     const folderId = useFlowsManagerStore.getState().currentFlow?.folder_id;
 
     if (queryClient) {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["useGetModelProviders"] }),
-        queryClient.invalidateQueries({ queryKey: ["useGetEnabledModels"] }),
-      ]);
+      await queryClient.invalidateQueries({
+        queryKey: ["useGetModelProviders"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["useGetEnabledModels"],
+      });
     }
 
     const nodesWithModelFields = allNodes.filter(isModelNode);
 
     if (nodesWithModelFields.length === 0) {
       if (showNotifications) {
-        setSuccessData({ title: "No model components to refresh" });
+        // biome-ignore lint/suspicious/noExplicitAny: legacy
+        setSuccessData({ title: (i18n as any).t("errors.noModelsToRefresh") });
       }
       return;
     }
@@ -106,21 +125,33 @@ export async function refreshAllModelInputs(
     );
     await Promise.all(refreshTasks);
 
+    // Re-apply translations after refresh overwrites output display_names
+    syncNodeTranslations();
+
     if (showNotifications) {
       const count = nodesWithModelFields.length;
-      const plural = count > 1 ? "s" : "";
-      setSuccessData({ title: `Refreshed ${count} model component${plural}` });
+      setSuccessData({
+        // biome-ignore lint/suspicious/noExplicitAny: legacy
+        title: (i18n as any).t("alerts.modelsRefreshed", { count }),
+      });
     }
   } catch (error) {
     console.error("Error refreshing model inputs:", error);
     if (showNotifications) {
       setErrorData({
-        title: "Error refreshing model components",
+        // biome-ignore lint/suspicious/noExplicitAny: legacy
+        title: (i18n as any).t("errors.refreshingModels"),
         list: [(error as Error)?.message || "An unexpected error occurred"],
       });
     }
   } finally {
     isRefreshInProgress = false;
+    // If another refresh was requested while this one was running, run it now
+    if (pendingRefresh) {
+      const { queryClient: qc, options: opts } = pendingRefresh;
+      pendingRefresh = null;
+      await refreshAllModelInputs(qc, opts);
+    }
   }
 }
 
@@ -202,6 +233,17 @@ async function refreshSingleNode(
   const modelFieldKey = findModelFieldKey(nodeData.template);
   if (!modelFieldKey) return;
 
+  // Skip refresh for outdated components when custom components are not allowed
+  // (the old code would be rejected by the backend with 403)
+  const allowCustomComponents =
+    useUtilityStore.getState().allowCustomComponents;
+  if (
+    !allowCustomComponents &&
+    isNodeOutdated(node.id, nodeData.template.code?.value)
+  ) {
+    return;
+  }
+
   const currentModelValue = nodeData.template[modelFieldKey]?.value;
 
   try {
@@ -211,16 +253,32 @@ async function refreshSingleNode(
       folderId,
     );
 
-    const response = await api.post<APIClassType>(
-      getURL("CUSTOM_COMPONENT", { update: "update" }),
-      {
-        code: nodeData.template.code?.value,
-        template: requestPayload,
-        field: modelFieldKey,
-        field_value: currentModelValue,
-        tool_mode: nodeData.tool_mode,
-      },
-    );
+    let response;
+    try {
+      response = await api.post<APIClassType>(
+        getURL("CUSTOM_COMPONENT", { update: "update" }),
+        {
+          code: nodeData.template.code?.value,
+          template: requestPayload,
+          field: modelFieldKey,
+          field_value: currentModelValue,
+          tool_mode: nodeData.tool_mode,
+        },
+      );
+      // biome-ignore lint/suspicious/noExplicitAny: legacy
+    } catch (e: any) {
+      // Suppress 403 specifically from custom component blocking — fallback
+      // for race conditions where guards above couldn't detect the outdated
+      // state.
+      if (!allowCustomComponents && isCustomComponentBlockError(e)) {
+        console.warn(
+          `Suppressed 403 for outdated component (node ${node.id}):`,
+          e.response.data.detail,
+        );
+        return;
+      }
+      throw e;
+    }
 
     const responseData = response.data;
     if (!responseData?.template) return;
