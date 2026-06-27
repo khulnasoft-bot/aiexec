@@ -538,20 +538,29 @@ patch: ## Update version across all projects. Usage: make patch v=1.5.0
 	\
 	echo "$(GREEN)Primeagent version: $$PRIMEAGENT_VERSION$(NC)"; \
 	echo "$(GREEN)Primeagent-base version: $$PRIMEAGENT_BASE_VERSION$(NC)"; \
+	echo "$(GREEN)WFX (synced): $$PRIMEAGENT_VERSION$(NC)"; \
 	\
 	echo "$(GREEN)Updating main pyproject.toml...$(NC)"; \
-	python -c "import re; fname='pyproject.toml'; txt=open(fname).read(); txt=re.sub(r'^version = \".*\"', 'version = \"$$PRIMEAGENT_VERSION\"', txt, flags=re.MULTILINE); txt=re.sub(r'\"primeagent-base==.*\"', '\"primeagent-base==$$PRIMEAGENT_BASE_VERSION\"', txt); open(fname, 'w').write(txt)"; \
+	python -c "import re; fname='pyproject.toml'; txt=open(fname).read(); txt=re.sub(r'^version = \".*\"', 'version = \"$$PRIMEAGENT_VERSION\"', txt, flags=re.MULTILINE); txt=re.sub(r'\"primeagent-base(?:\[[^\]]*\])?(?:==|>=|~=)[^\"]*\"', '\"primeagent-base[complete]>=$$PRIMEAGENT_BASE_VERSION\"', txt); open(fname, 'w').write(txt)"; \
 	\
 	echo "$(GREEN)Updating primeagent-base pyproject.toml...$(NC)"; \
-	python -c "import re; fname='src/backend/base/pyproject.toml'; txt=open(fname).read(); txt=re.sub(r'^version = \".*\"', 'version = \"$$PRIMEAGENT_BASE_VERSION\"', txt, flags=re.MULTILINE); open(fname, 'w').write(txt)"; \
+	python -c "import re; fname='src/backend/base/pyproject.toml'; txt=open(fname).read(); txt=re.sub(r'^version = \".*\"', 'version = \"$$PRIMEAGENT_BASE_VERSION\"', txt, flags=re.MULTILINE); txt=re.sub(r'\"wfx(?:~=|>=)[^\"]*\"', '\"wfx~=$$PRIMEAGENT_VERSION\"', txt); open(fname, 'w').write(txt)"; \
+	\
+	echo "$(GREEN)Updating wfx pyproject.toml...$(NC)"; \
+	python -c "import re; fname='src/wfx/pyproject.toml'; txt=open(fname).read(); txt=re.sub(r'^version = \".*\"', 'version = \"$$PRIMEAGENT_VERSION\"', txt, flags=re.MULTILINE); open(fname, 'w').write(txt)"; \
+	\
+	echo "$(GREEN)Syncing bundle wfx pins (src/bundles/*) -> $$PRIMEAGENT_VERSION...$(NC)"; \
+	python scripts/ci/sync_bundle_wfx_pin.py "$$PRIMEAGENT_VERSION"; \
 	\
 	echo "$(GREEN)Updating frontend package.json...$(NC)"; \
 	python -c "import re; fname='src/frontend/package.json'; txt=open(fname).read(); txt=re.sub(r'\"version\": \".*\"', '\"version\": \"$$PRIMEAGENT_VERSION\"', txt); open(fname, 'w').write(txt)"; \
 	\
 	echo "$(GREEN)Validating version changes...$(NC)"; \
 	if ! grep -q "^version = \"$$PRIMEAGENT_VERSION\"" pyproject.toml; then echo "$(RED)✗ Main pyproject.toml version validation failed$(NC)"; exit 1; fi; \
-	if ! grep -q "\"primeagent-base==$$PRIMEAGENT_BASE_VERSION\"" pyproject.toml; then echo "$(RED)✗ Main pyproject.toml primeagent-base dependency validation failed$(NC)"; exit 1; fi; \
+	if ! grep -qF "\"primeagent-base[complete]>=$$PRIMEAGENT_BASE_VERSION\"" pyproject.toml; then echo "$(RED)✗ Main pyproject.toml primeagent-base dependency validation failed$(NC)"; exit 1; fi; \
 	if ! grep -q "^version = \"$$PRIMEAGENT_BASE_VERSION\"" src/backend/base/pyproject.toml; then echo "$(RED)✗ Primeagent-base pyproject.toml version validation failed$(NC)"; exit 1; fi; \
+	if ! grep -q "\"wfx~=$$PRIMEAGENT_VERSION\"" src/backend/base/pyproject.toml; then echo "$(RED)✗ Primeagent-base pyproject.toml wfx pin validation failed$(NC)"; exit 1; fi; \
+	if ! grep -q "^version = \"$$PRIMEAGENT_VERSION\"" src/wfx/pyproject.toml; then echo "$(RED)✗ WFX pyproject.toml version validation failed$(NC)"; exit 1; fi; \
 	if ! grep -q "\"version\": \"$$PRIMEAGENT_VERSION\"" src/frontend/package.json; then echo "$(RED)✗ Frontend package.json version validation failed$(NC)"; exit 1; fi; \
 	echo "$(GREEN)✓ All versions updated successfully$(NC)"; \
 	\
@@ -562,13 +571,13 @@ patch: ## Update version across all projects. Usage: make patch v=1.5.0
 	\
 	echo "$(GREEN)Validating final state...$(NC)"; \
 	CHANGED_FILES=$$(git status --porcelain | wc -l | tr -d ' '); \
-	if [ "$$CHANGED_FILES" -lt 5 ]; then \
-		echo "$(RED)✗ Expected at least 5 changed files, but found $$CHANGED_FILES$(NC)"; \
+	if [ "$$CHANGED_FILES" -lt 6 ]; then \
+		echo "$(RED)✗ Expected at least 6 changed files, but found $$CHANGED_FILES$(NC)"; \
 		echo "$(RED)Changed files:$(NC)"; \
 		git status --porcelain; \
 		exit 1; \
 	fi; \
-	EXPECTED_FILES="pyproject.toml uv.lock src/backend/base/pyproject.toml src/frontend/package.json src/frontend/package-lock.json"; \
+	EXPECTED_FILES="pyproject.toml uv.lock src/backend/base/pyproject.toml src/wfx/pyproject.toml src/frontend/package.json src/frontend/package-lock.json"; \
 	for file in $$EXPECTED_FILES; do \
 		if ! git status --porcelain | grep -q "$$file"; then \
 			echo "$(RED)✗ Expected file $$file was not modified$(NC)"; \
@@ -580,11 +589,13 @@ patch: ## Update version across all projects. Usage: make patch v=1.5.0
 	echo "$(GREEN)Version update complete!$(NC)"; \
 	echo "$(GREEN)Updated files:$(NC)"; \
 	echo "  - pyproject.toml: $$PRIMEAGENT_VERSION"; \
-	echo "  - src/backend/base/pyproject.toml: $$PRIMEAGENT_BASE_VERSION"; \
+	echo "  - src/backend/base/pyproject.toml: $$PRIMEAGENT_BASE_VERSION (wfx pin → $$PRIMEAGENT_VERSION)"; \
+	echo "  - src/wfx/pyproject.toml: $$PRIMEAGENT_VERSION"; \
 	echo "  - src/frontend/package.json: $$PRIMEAGENT_VERSION"; \
 	echo "  - uv.lock: dependency lock updated"; \
 	echo "  - src/frontend/package-lock.json: dependency lock updated"; \
 	echo "$(GREEN)Dependencies synced successfully!$(NC)"
+
 
 ######################
 # LOAD TESTING
