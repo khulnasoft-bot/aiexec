@@ -7,7 +7,7 @@
 ################################
 
 # Use an Alpine-based Python image with uv pre-installed
-FROM ghcr.io/astral-sh/uv:python3.14-alpine AS builder
+FROM ghcr.io/astral-sh/uv:python3.13-alpine AS builder
 
 # Install build dependencies needed for some Python packages on Alpine
 RUN apk add --no-cache build-base libaio-dev linux-headers
