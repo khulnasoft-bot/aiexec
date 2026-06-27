@@ -12,15 +12,19 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from wfx.services.adapters.deployment.schema import (
+        ConfigListParams,
+        ConfigListResult,
         DeploymentCreate,
         DeploymentCreateResult,
         DeploymentDeleteResult,
         DeploymentDuplicateResult,
         DeploymentGetResult,
+        DeploymentListLlmsResult,
         DeploymentListParams,
         DeploymentListResult,
         DeploymentListTypesResult,
         DeploymentStatusResult,
+        DeploymentType,
         DeploymentUpdate,
         DeploymentUpdateResult,
         ExecutionCreate,
@@ -28,6 +32,10 @@ if TYPE_CHECKING:
         ExecutionStatusResult,
         IdLike,
         RedeployResult,
+        SnapshotListParams,
+        SnapshotListResult,
+        VerifyCredentials,
+        VerifyCredentialsResult,
     )
     from wfx.services.settings.base import Settings
 
@@ -235,6 +243,10 @@ class DeploymentServiceProtocol(Protocol):
     Keep this protocol intentionally narrow (consumer-facing CRUD + status).
     Adapter-specific or advanced operations are defined on concrete deployment
     service classes.
+
+    ``deployment_type`` is accepted as an optional routing hint by operations
+    that act on a specific deployment. For execution creation, it is provided
+    in the ``ExecutionCreate`` payload.
     """
 
     @abstractmethod
@@ -259,6 +271,16 @@ class DeploymentServiceProtocol(Protocol):
         ...
 
     @abstractmethod
+    async def list_llms(
+        self,
+        *,
+        user_id: IdLike,
+        db: AsyncSession,
+    ) -> DeploymentListLlmsResult:
+        """List provider-available LLM model names for deployment configuration."""
+        ...
+
+    @abstractmethod
     async def list(
         self,
         *,
@@ -275,6 +297,7 @@ class DeploymentServiceProtocol(Protocol):
         *,
         user_id: IdLike,
         deployment_id: IdLike,
+        deployment_type: DeploymentType | None = None,
         db: AsyncSession,
     ) -> DeploymentGetResult:
         """Return deployment metadata by provider ID."""
@@ -286,10 +309,13 @@ class DeploymentServiceProtocol(Protocol):
         *,
         user_id: IdLike,
         deployment_id: IdLike,
+        deployment_type: DeploymentType | None = None,
         payload: DeploymentUpdate,
         db: AsyncSession,
     ) -> DeploymentUpdateResult:
         """Update deployment inputs and apply changes in the provider."""
+        # TODO: Add a rollback-update interface contract for adapters so callers
+        # can compensate provider-side updates when downstream local sync fails.
         ...
 
     @abstractmethod
@@ -298,6 +324,7 @@ class DeploymentServiceProtocol(Protocol):
         *,
         user_id: IdLike,
         deployment_id: IdLike,
+        deployment_type: DeploymentType | None = None,
         db: AsyncSession,
     ) -> RedeployResult:
         """Re-apply current deployment inputs without changing them."""
@@ -309,6 +336,7 @@ class DeploymentServiceProtocol(Protocol):
         *,
         user_id: IdLike,
         deployment_id: IdLike,
+        deployment_type: DeploymentType | None = None,
         db: AsyncSession,
     ) -> DeploymentDuplicateResult:
         """Create a new deployment using the same inputs as the source."""
@@ -320,6 +348,7 @@ class DeploymentServiceProtocol(Protocol):
         *,
         user_id: IdLike,
         deployment_id: IdLike,
+        deployment_type: DeploymentType | None = None,
         db: AsyncSession,
     ) -> DeploymentDeleteResult:
         """Delete the deployment from the provider."""
@@ -331,6 +360,7 @@ class DeploymentServiceProtocol(Protocol):
         *,
         user_id: IdLike,
         deployment_id: IdLike,
+        deployment_type: DeploymentType | None = None,
         db: AsyncSession,
     ) -> DeploymentStatusResult:
         """Return provider-reported health/status for the deployment."""
@@ -353,9 +383,42 @@ class DeploymentServiceProtocol(Protocol):
         *,
         user_id: IdLike,
         execution_id: IdLike,
+        deployment_type: DeploymentType | None = None,
         db: AsyncSession,
     ) -> ExecutionStatusResult:
         """Get provider-agnostic deployment execution state/output."""
+        ...
+
+    @abstractmethod
+    async def list_configs(
+        self,
+        *,
+        user_id: IdLike,
+        params: ConfigListParams | None = None,
+        db: AsyncSession,
+    ) -> ConfigListResult:
+        """List configs visible to this adapter."""
+        ...
+
+    @abstractmethod
+    async def list_snapshots(
+        self,
+        *,
+        user_id: IdLike,
+        params: SnapshotListParams | None = None,
+        db: AsyncSession,
+    ) -> SnapshotListResult:
+        """List snapshots visible to this adapter."""
+        ...
+
+    @abstractmethod
+    async def verify_credentials(
+        self,
+        *,
+        user_id: IdLike,
+        payload: VerifyCredentials,
+    ) -> VerifyCredentialsResult:
+        """Verify provider credentials before account creation."""
         ...
 
     @abstractmethod

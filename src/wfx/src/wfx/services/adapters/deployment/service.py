@@ -13,15 +13,19 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from wfx.services.adapters.deployment.schema import (
+        ConfigListParams,
+        ConfigListResult,
         DeploymentCreate,
         DeploymentCreateResult,
         DeploymentDeleteResult,
         DeploymentDuplicateResult,
         DeploymentGetResult,
+        DeploymentListLlmsResult,
         DeploymentListParams,
         DeploymentListResult,
         DeploymentListTypesResult,
         DeploymentStatusResult,
+        DeploymentType,
         DeploymentUpdate,
         DeploymentUpdateResult,
         ExecutionCreate,
@@ -29,6 +33,10 @@ if TYPE_CHECKING:
         ExecutionStatusResult,
         IdLike,
         RedeployResult,
+        SnapshotListParams,
+        SnapshotListResult,
+        VerifyCredentials,
+        VerifyCredentialsResult,
     )
 
 
@@ -64,6 +72,15 @@ class DeploymentService(BaseDeploymentService):
         """List deployment types supported by the provider."""
         raise DeploymentNotConfiguredError(method="list_types")
 
+    async def list_llms(
+        self,
+        *,
+        user_id: IdLike,
+        db: AsyncSession,
+    ) -> DeploymentListLlmsResult:
+        """List provider-available LLM model names for deployment configuration."""
+        raise DeploymentNotConfiguredError(method="list_llms")
+
     async def list(
         self,
         *,
@@ -79,6 +96,7 @@ class DeploymentService(BaseDeploymentService):
         *,
         user_id: IdLike,
         deployment_id: IdLike,
+        deployment_type: DeploymentType | None = None,
         db: AsyncSession,
     ) -> DeploymentGetResult:
         """Return deployment metadata by provider ID."""
@@ -89,6 +107,7 @@ class DeploymentService(BaseDeploymentService):
         *,
         user_id: IdLike,
         deployment_id: IdLike,
+        deployment_type: DeploymentType | None = None,
         payload: DeploymentUpdate,
         db: AsyncSession,
     ) -> DeploymentUpdateResult:
@@ -100,6 +119,7 @@ class DeploymentService(BaseDeploymentService):
         *,
         user_id: IdLike,
         deployment_id: IdLike,
+        deployment_type: DeploymentType | None = None,
         db: AsyncSession,
     ) -> RedeployResult:
         """Re-apply current deployment inputs without changing them."""
@@ -110,6 +130,7 @@ class DeploymentService(BaseDeploymentService):
         *,
         user_id: IdLike,
         deployment_id: IdLike,
+        deployment_type: DeploymentType | None = None,
         db: AsyncSession,
     ) -> DeploymentDuplicateResult:
         """Create a new deployment using the same inputs as the source."""
@@ -120,6 +141,7 @@ class DeploymentService(BaseDeploymentService):
         *,
         user_id: IdLike,
         deployment_id: IdLike,
+        deployment_type: DeploymentType | None = None,
         db: AsyncSession,
     ) -> DeploymentDeleteResult:
         """Delete the deployment from the provider."""
@@ -130,6 +152,7 @@ class DeploymentService(BaseDeploymentService):
         *,
         user_id: IdLike,
         deployment_id: IdLike,
+        deployment_type: DeploymentType | None = None,
         db: AsyncSession,
     ) -> DeploymentStatusResult:
         """Return provider-reported health/status for the deployment."""
@@ -150,10 +173,40 @@ class DeploymentService(BaseDeploymentService):
         *,
         user_id: IdLike,
         execution_id: IdLike,
+        deployment_type: DeploymentType | None = None,
         db: AsyncSession,
     ) -> ExecutionStatusResult:
         """Get provider-agnostic deployment execution state/output."""
         raise DeploymentNotConfiguredError(method="get_execution")
+
+    async def list_configs(
+        self,
+        *,
+        user_id: IdLike,
+        params: ConfigListParams | None = None,
+        db: AsyncSession,
+    ) -> ConfigListResult:
+        """List configs visible to this adapter."""
+        raise DeploymentNotConfiguredError(method="list_configs")
+
+    async def list_snapshots(
+        self,
+        *,
+        user_id: IdLike,
+        params: SnapshotListParams | None = None,
+        db: AsyncSession,
+    ) -> SnapshotListResult:
+        """List snapshots visible to this adapter."""
+        raise DeploymentNotConfiguredError(method="list_snapshots")
+
+    async def verify_credentials(
+        self,
+        *,
+        user_id: IdLike,
+        payload: VerifyCredentials,
+    ) -> VerifyCredentialsResult:
+        """Verify provider credentials before account creation."""
+        raise DeploymentNotConfiguredError(method="verify_credentials")
 
     async def teardown(self) -> None:
         logger.debug("Deployment service teardown")
