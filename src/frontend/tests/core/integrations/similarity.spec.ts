@@ -2,8 +2,9 @@ import { expect, test } from "../../fixtures";
 import { addLegacyComponents } from "../../utils/add-legacy-components";
 import { adjustScreenView } from "../../utils/adjust-screen-view";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
+import { TEXTS } from "../../utils/constants/texts";
+import { dismissLegacyWarnings } from "../../utils/dismiss-legacy-warnings";
 import { unselectNodes } from "../../utils/unselect-nodes";
-
 import { updateOldComponents } from "../../utils/update-old-components";
 import { zoomOut } from "../../utils/zoom-out";
 
@@ -89,7 +90,7 @@ test(
     //seventh component
 
     await page.getByTestId("sidebar-search-input").click();
-    await page.getByTestId("sidebar-search-input").fill("text output");
+    await page.getByTestId("sidebar-search-input").fill(TEXTS.searchTextOutput);
     await page.waitForSelector("text=Text Output", {
       timeout: 1000,
     });
@@ -128,7 +129,7 @@ test(
     await page
       .getByTestId("popover-anchor-input-message")
       .first()
-      .fill("primeagent");
+      .fill(TEXTS.authDefaultCredential);
 
     const firstApiKeyInput = page
       .getByTestId("popover-anchor-input-openai_api_key")
@@ -218,7 +219,7 @@ test(
     await embeddingSimilarityOutput.hover();
     await page.mouse.down();
     const filterDataInput = await page
-      .getByTestId("handle-filterdata-shownode-data-left")
+      .getByTestId("handle-filterdata-shownode-json-left")
       .nth(0);
     await filterDataInput.hover();
     await page.mouse.up();
@@ -230,7 +231,7 @@ test(
     await filterDataOutput.hover();
     await page.mouse.down();
     const parseDataInput = await page
-      .getByTestId("handle-parsedata-shownode-data-left")
+      .getByTestId("handle-parsedata-shownode-json-left")
       .nth(0);
     await parseDataInput.hover();
     await page.mouse.up();
@@ -249,9 +250,16 @@ test(
 
     await page.getByTestId("button_run_text output").click();
 
-    await page.waitForSelector("text=built successfully", { timeout: 30000 });
+    await page.waitForSelector(`text=${TEXTS.toastBuiltSuccessfully}`, {
+      timeout: 120000,
+    });
 
     await unselectNodes(page);
+
+    // Data to Message, Filter Data, and Text Output are legacy components; their
+    // "Legacy" warning bars increase node height and can overlap the Text Output
+    // inspection button. Dismiss the bars so the button is clickable.
+    await dismissLegacyWarnings(page);
 
     await page
       .getByTestId(/rf__node-TextOutput-[a-zA-Z0-9]{5}/)

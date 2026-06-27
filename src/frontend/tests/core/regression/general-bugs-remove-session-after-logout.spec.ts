@@ -1,5 +1,7 @@
 import { expect, test } from "../../fixtures";
 
+import { TEXTS } from "../../utils/constants/texts";
+
 test(
   "user must not be able to login after logout and refresh the page when auto_login is false",
   { tag: ["@release", "@api"] },
@@ -30,18 +32,22 @@ test(
 
     await page.goto("/");
 
-    await page.waitForSelector("text=sign in to primeagent", {
+    await page.waitForSelector(`text=${TEXTS.authSignInHeader}`, {
       timeout: 30000,
     });
 
-    await page.getByPlaceholder("Username").fill("primeagent");
-    await page.getByPlaceholder("Password").fill("primeagent");
+    await page
+      .getByPlaceholder(TEXTS.placeholderUsername)
+      .fill(TEXTS.authDefaultCredential);
+    await page
+      .getByPlaceholder(TEXTS.placeholderPassword)
+      .fill(TEXTS.authDefaultCredential);
 
     await page.evaluate(() => {
       sessionStorage.removeItem("testMockAutoLogin");
     });
 
-    await page.getByRole("button", { name: "Sign In" }).click();
+    await page.getByRole("button", { name: TEXTS.signIn }).click();
 
     await page.waitForSelector('[data-testid="mainpage_title"]', {
       timeout: 30000,
@@ -53,13 +59,13 @@ test(
       sessionStorage.setItem("testMockAutoLogin", "true");
     });
 
-    await page.getByText("Logout", { exact: true }).click();
+    await page.getByText(TEXTS.logout, { exact: true }).click();
 
     await page.waitForTimeout(1000);
 
     await page.reload();
 
-    await page.waitForSelector("text=sign in to primeagent", {
+    await page.waitForSelector(`text=${TEXTS.authSignInHeader}`, {
       timeout: 30000,
     });
 
