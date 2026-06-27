@@ -171,7 +171,7 @@
             "legacy": false,
             "lf_version": "1.6.0",
             "metadata": {
-              "code_hash": "518f16485886",
+              "code_hash": "8fde0edfd60f",
               "dependencies": {
                 "dependencies": [
                   {
@@ -319,7 +319,7 @@
             "legacy": false,
             "lf_version": "1.6.0",
             "metadata": {
-              "code_hash": "8c87e536cca4",
+              "code_hash": "be0ed231b458",
               "dependencies": {
                 "dependencies": [
                   {
@@ -328,7 +328,7 @@
                   },
                   {
                     "name": "fastapi",
-                    "version": "0.135.1"
+                    "version": "0.138.1"
                   },
                   {
                     "name": "wfx",
@@ -911,7 +911,7 @@
             "legacy": false,
             "lf_version": "1.6.0",
             "metadata": {
-              "code_hash": "12a5841f1a03",
+              "code_hash": "b81a925a9dd2",
               "dependencies": {
                 "dependencies": [
                   {
@@ -920,7 +920,7 @@
                   },
                   {
                     "name": "langchain_core",
-                    "version": "0.3.83"
+                    "version": "0.3.86"
                   },
                   {
                     "name": "pydantic",
@@ -2306,7 +2306,7 @@
             "legacy": false,
             "lf_version": "1.6.0",
             "metadata": {
-              "code_hash": "058ca1f51e9f",
+              "code_hash": "97882c152900",
               "dependencies": {
                 "dependencies": [
                   {

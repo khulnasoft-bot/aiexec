@@ -197,7 +197,7 @@
             "legacy": false,
             "lf_version": "1.2.0",
             "metadata": {
-              "code_hash": "acbe2603b034",
+              "code_hash": "45e1562bf6ef",
               "dependencies": {
                 "dependencies": [
                   {
@@ -365,7 +365,7 @@
             "key": "ChatInput",
             "legacy": false,
             "metadata": {
-              "code_hash": "7a26c54d89ed",
+              "code_hash": "24fe7ac00755",
               "dependencies": {
                 "dependencies": [
                   {
@@ -644,7 +644,7 @@
             "key": "ChatOutput",
             "legacy": false,
             "metadata": {
-              "code_hash": "8c87e536cca4",
+              "code_hash": "be0ed231b458",
               "dependencies": {
                 "dependencies": [
                   {
@@ -653,7 +653,7 @@
                   },
                   {
                     "name": "fastapi",
-                    "version": "0.135.1"
+                    "version": "0.138.1"
                   },
                   {
                     "name": "wfx",
@@ -933,7 +933,7 @@
             "last_updated": "2026-02-12T20:48:13.965Z",
             "legacy": false,
             "metadata": {
-              "code_hash": "60401f4e0ff8",
+              "code_hash": "ddd0c701748b",
               "dependencies": {
                 "dependencies": [
                   {
@@ -946,7 +946,7 @@
                   },
                   {
                     "name": "langchain_core",
-                    "version": "0.3.83"
+                    "version": "0.3.86"
                   }
                 ],
                 "total_dependencies": 3
@@ -1826,12 +1826,12 @@
             "last_updated": "2026-02-12T20:48:13.882Z",
             "legacy": false,
             "metadata": {
-              "code_hash": "f773f55e3820",
+              "code_hash": "7e442af84433",
               "dependencies": {
                 "dependencies": [
                   {
                     "name": "requests",
-                    "version": "2.32.5"
+                    "version": "2.34.2"
                   },
                   {
                     "name": "bs4",
@@ -1843,7 +1843,7 @@
                   },
                   {
                     "name": "markitdown",
-                    "version": "0.1.5"
+                    "version": "0.1.6"
                   },
                   {
                     "name": "wfx",

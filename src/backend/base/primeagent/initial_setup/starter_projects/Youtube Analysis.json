@@ -259,7 +259,7 @@
             "legacy": false,
             "lf_version": "1.4.3",
             "metadata": {
-              "code_hash": "20398e0d18df",
+              "code_hash": "6b82519fd1e4",
               "dependencies": {
                 "dependencies": [
                   {
@@ -494,7 +494,7 @@
             "last_updated": "2025-12-22T21:08:01.050Z",
             "legacy": false,
             "metadata": {
-              "code_hash": "60401f4e0ff8",
+              "code_hash": "ddd0c701748b",
               "dependencies": {
                 "dependencies": [
                   {
@@ -507,7 +507,7 @@
                   },
                   {
                     "name": "langchain_core",
-                    "version": "0.3.83"
+                    "version": "0.3.86"
                   }
                 ],
                 "total_dependencies": 3
@@ -1440,7 +1440,7 @@
             "legacy": false,
             "lf_version": "1.4.3",
             "metadata": {
-              "code_hash": "8c87e536cca4",
+              "code_hash": "be0ed231b458",
               "dependencies": {
                 "dependencies": [
                   {
@@ -1449,7 +1449,7 @@
                   },
                   {
                     "name": "fastapi",
-                    "version": "0.135.1"
+                    "version": "0.138.1"
                   },
                   {
                     "name": "wfx",
@@ -1722,7 +1722,7 @@
             "legacy": false,
             "lf_version": "1.4.3",
             "metadata": {
-              "code_hash": "0ed75539d58d",
+              "code_hash": "1555491d2895",
               "dependencies": {
                 "dependencies": [
                   {
@@ -2192,7 +2192,7 @@
             "legacy": false,
             "lf_version": "1.4.3",
             "metadata": {
-              "code_hash": "7a26c54d89ed",
+              "code_hash": "24fe7ac00755",
               "dependencies": {
                 "dependencies": [
                   {
@@ -2469,7 +2469,7 @@
             "last_updated": "2025-12-22T21:08:20.144Z",
             "legacy": false,
             "metadata": {
-              "code_hash": "8b1ec3b03475",
+              "code_hash": "634e1726ca83",
               "dependencies": {
                 "dependencies": [
                   {
@@ -2482,7 +2482,7 @@
                   },
                   {
                     "name": "langchain_core",
-                    "version": "0.3.83"
+                    "version": "0.3.86"
                   }
                 ],
                 "total_dependencies": 3

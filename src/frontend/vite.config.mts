@@ -41,6 +41,37 @@ export default defineConfig(({ mode }) => {
     base: BASENAME || "",
     build: {
       outDir: "build",
+      chunkSizeWarningLimit: 1000,
+      rollupOptions: {
+        output: {
+          manualChunks: (id) => {
+            if (id.includes("node_modules")) {
+              if (id.includes("@tanstack/react-query")) {
+                return "tanstack";
+              }
+              if (id.includes("@radix-ui")) {
+                return "radix";
+              }
+              if (id.includes("react") || id.includes("react-dom")) {
+                return "react";
+              }
+              if (id.includes("@xyflow/react") || id.includes("reactflow")) {
+                return "flow";
+              }
+              if (id.includes("ag-grid")) {
+                return "ag-grid";
+              }
+              if (id.includes("ace-builds") || id.includes("react-ace")) {
+                return "editor";
+              }
+              if (id.includes("framer-motion")) {
+                return "motion";
+              }
+              return "vendor";
+            }
+          },
+        },
+      },
     },
     define: {
       "import.meta.env.BACKEND_URL": JSON.stringify(

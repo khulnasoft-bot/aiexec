@@ -383,7 +383,7 @@
             "legacy": false,
             "lf_version": "1.4.2",
             "metadata": {
-              "code_hash": "518f16485886",
+              "code_hash": "8fde0edfd60f",
               "dependencies": {
                 "dependencies": [
                   {
@@ -529,7 +529,7 @@
             "legacy": false,
             "lf_version": "1.4.2",
             "metadata": {
-              "code_hash": "8c87e536cca4",
+              "code_hash": "be0ed231b458",
               "dependencies": {
                 "dependencies": [
                   {
@@ -538,7 +538,7 @@
                   },
                   {
                     "name": "fastapi",
-                    "version": "0.135.1"
+                    "version": "0.138.1"
                   },
                   {
                     "name": "wfx",
@@ -827,7 +827,7 @@
             "legacy": false,
             "lf_version": "1.4.2",
             "metadata": {
-              "code_hash": "3cda25c3f7b5",
+              "code_hash": "e0f31230dd98",
               "dependencies": {
                 "dependencies": [
                   {
@@ -1023,12 +1023,12 @@
             "legacy": false,
             "lf_version": "1.4.2",
             "metadata": {
-              "code_hash": "f773f55e3820",
+              "code_hash": "7e442af84433",
               "dependencies": {
                 "dependencies": [
                   {
                     "name": "requests",
-                    "version": "2.32.5"
+                    "version": "2.34.2"
                   },
                   {
                     "name": "bs4",
@@ -1040,7 +1040,7 @@
                   },
                   {
                     "name": "markitdown",
-                    "version": "0.1.5"
+                    "version": "0.1.6"
                   },
                   {
                     "name": "wfx",

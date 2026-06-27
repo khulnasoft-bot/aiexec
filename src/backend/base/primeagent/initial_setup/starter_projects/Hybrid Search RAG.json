@@ -199,7 +199,7 @@
             "legacy": false,
             "lf_version": "1.6.0",
             "metadata": {
-              "code_hash": "7a26c54d89ed",
+              "code_hash": "24fe7ac00755",
               "dependencies": {
                 "dependencies": [
                   {
@@ -472,7 +472,7 @@
             "legacy": false,
             "lf_version": "1.6.0",
             "metadata": {
-              "code_hash": "3cda25c3f7b5",
+              "code_hash": "e0f31230dd98",
               "dependencies": {
                 "dependencies": [
                   {
@@ -661,7 +661,7 @@
             "legacy": false,
             "lf_version": "1.6.0",
             "metadata": {
-              "code_hash": "8c87e536cca4",
+              "code_hash": "be0ed231b458",
               "dependencies": {
                 "dependencies": [
                   {
@@ -670,7 +670,7 @@
                   },
                   {
                     "name": "fastapi",
-                    "version": "0.135.1"
+                    "version": "0.138.1"
                   },
                   {
                     "name": "wfx",
@@ -938,7 +938,7 @@
             "legacy": false,
             "lf_version": "1.6.0",
             "metadata": {
-              "code_hash": "3cda25c3f7b5",
+              "code_hash": "e0f31230dd98",
               "dependencies": {
                 "dependencies": [
                   {
@@ -1153,7 +1153,7 @@
             "legacy": false,
             "lf_version": "1.6.0",
             "metadata": {
-              "code_hash": "058ca1f51e9f",
+              "code_hash": "97882c152900",
               "dependencies": {
                 "dependencies": [
                   {
@@ -1729,16 +1729,16 @@
             "last_updated": "2026-01-05T20:31:04.587Z",
             "legacy": false,
             "metadata": {
-              "code_hash": "9ca3747e73d6",
+              "code_hash": "552858555797",
               "dependencies": {
                 "dependencies": [
                   {
                     "name": "astrapy",
-                    "version": "2.1.0"
+                    "version": "2.2.1"
                   },
                   {
                     "name": "langchain_core",
-                    "version": "0.3.83"
+                    "version": "0.3.86"
                   },
                   {
                     "name": "wfx",

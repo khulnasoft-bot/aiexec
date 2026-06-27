@@ -355,7 +355,7 @@
             "last_updated": "2025-12-11T21:41:48.407Z",
             "legacy": false,
             "metadata": {
-              "code_hash": "60401f4e0ff8",
+              "code_hash": "ddd0c701748b",
               "dependencies": {
                 "dependencies": [
                   {
@@ -368,7 +368,7 @@
                   },
                   {
                     "name": "langchain_core",
-                    "version": "0.3.83"
+                    "version": "0.3.86"
                   }
                 ],
                 "total_dependencies": 3
@@ -940,7 +940,7 @@
             "last_updated": "2025-12-11T21:41:48.407Z",
             "legacy": false,
             "metadata": {
-              "code_hash": "60401f4e0ff8",
+              "code_hash": "ddd0c701748b",
               "dependencies": {
                 "dependencies": [
                   {
@@ -953,7 +953,7 @@
                   },
                   {
                     "name": "langchain_core",
-                    "version": "0.3.83"
+                    "version": "0.3.86"
                   }
                 ],
                 "total_dependencies": 3
@@ -2066,7 +2066,7 @@
             "legacy": false,
             "lf_version": "1.0.19.post2",
             "metadata": {
-              "code_hash": "7a26c54d89ed",
+              "code_hash": "24fe7ac00755",
               "dependencies": {
                 "dependencies": [
                   {
@@ -2382,7 +2382,7 @@
             "last_updated": "2025-12-11T21:41:48.407Z",
             "legacy": false,
             "metadata": {
-              "code_hash": "60401f4e0ff8",
+              "code_hash": "ddd0c701748b",
               "dependencies": {
                 "dependencies": [
                   {
@@ -2395,7 +2395,7 @@
                   },
                   {
                     "name": "langchain_core",
-                    "version": "0.3.83"
+                    "version": "0.3.86"
                   }
                 ],
                 "total_dependencies": 3
@@ -2954,7 +2954,7 @@
             "icon": "trending-up",
             "legacy": false,
             "metadata": {
-              "code_hash": "d6bf628ab821",
+              "code_hash": "0e30d9aaa484",
               "dependencies": {
                 "dependencies": [
                   {
@@ -2963,7 +2963,7 @@
                   },
                   {
                     "name": "langchain_core",
-                    "version": "0.3.83"
+                    "version": "0.3.86"
                   },
                   {
                     "name": "pydantic",
@@ -3189,7 +3189,7 @@
             "key": "CalculatorComponent",
             "legacy": false,
             "metadata": {
-              "code_hash": "acbe2603b034",
+              "code_hash": "45e1562bf6ef",
               "dependencies": {
                 "dependencies": [
                   {
@@ -3360,7 +3360,7 @@
             "icon": "TavilyIcon",
             "legacy": false,
             "metadata": {
-              "code_hash": "e602eaec8316",
+              "code_hash": "bb30c8711e8c",
               "dependencies": {
                 "dependencies": [
                   {
@@ -3771,7 +3771,7 @@
             "key": "ChatOutput",
             "legacy": false,
             "metadata": {
-              "code_hash": "8c87e536cca4",
+              "code_hash": "be0ed231b458",
               "dependencies": {
                 "dependencies": [
                   {
@@ -3780,7 +3780,7 @@
                   },
                   {
                     "name": "fastapi",
-                    "version": "0.135.1"
+                    "version": "0.138.1"
                   },
                   {
                     "name": "wfx",

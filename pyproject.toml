@@ -2,23 +2,13 @@
 name = "primeagent"
 version = "1.8.0"
 description = "A Python package with a built-in web application"
-requires-python = ">=3.10,<3.14"
+requires-python = ">=3.9,<3.12"
 license = "MIT"
 keywords = ["nlp", "langchain", "openai", "gpt", "gui"]
 readme = "README.md"
-maintainers = [
-    { name = "Carlos Coelho", email = "carlos@khulnasoft.com" },
-    { name = "Cristhian Zanforlin", email = "cristhian.lousa@gmail.com" },
-    { name = "Gabriel Almeida", email = "gabriel@khulnasoft.com" },
-    { name = "Lucas Eduoli", email = "lucaseduoli@gmail.com" },
-    { name = "Otávio Anovazzi", email = "otavio2204@gmail.com" },
-    { name = "Rodrigo Nader", email = "rodrigo@khulnasoft.com" },
-    { name = "Italo dos Anjos", email = "italojohnnydosanjos@gmail.com" },
-]
+maintainers = [{ name = "Md Sulaiman", email = "ceo@khulnasoft.com" }]
 # Define your main dependencies here
-dependencies = [
-    "primeagent-base[complete]~=0.8.0",
-]
+dependencies = ["primeagent-base[complete]~=0.8.0"]
 
 
 [dependency-groups]
@@ -70,27 +60,16 @@ dev = [
     "pyyaml>=6.0.2",
     "pyleak>=0.1.14",
     "mcp-server-fetch>=2025.1.17",
-    "onnxruntime>=1.20,<=1.23" # >=1.24 does not support Python 3.10
+    "onnxruntime>=1.20,<=1.23",                       # >=1.24 does not support Python 3.10
 ]
-
-[[tool.uv.index]]
-name = "pytorch-cpu"
-url = "https://download.pytorch.org/whl/cpu"
-explicit = true
 
 [tool.uv.sources]
 primeagent-base = { workspace = true }
 primeagent = { workspace = true }
 wfx = { workspace = true }
-torch = { index = "pytorch-cpu" }
-torchvision = { index = "pytorch-cpu" }
 
 [tool.uv.workspace]
-members = [
-    "src/backend/base",
-    ".",
-    "src/wfx",
-]
+members = ["src/backend/base", ".", "src/wfx"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/backend/primeagent"]
@@ -111,25 +90,17 @@ docling = [
     "torchvision>=0.15.0",
 ]
 
-audio = [
-    "webrtcvad>=2.0.10",
-]
+audio = ["webrtcvad>=2.0.10"]
 
 
-couchbase = [
-    "couchbase>=4.2.1"
-]
-cassio = [
-    "cassio>=0.1.7"
-]
+couchbase = ["couchbase>=4.2.1"]
+cassio = ["cassio>=0.1.7"]
 local = [
     "llama-cpp-python~=0.2.0",
     "sentence-transformers>=2.3.1",
-    "ctransformers>=0.2.10"
+    "ctransformers>=0.2.10",
 ]
-clickhouse-connect = [
-    "clickhouse-connect==0.7.19"
-]
+clickhouse-connect = ["clickhouse-connect==0.7.19"]
 
 nv-ingest = [
     # NOTE: These must be removed in order to run `uv lock --upgrade` or `uv sync --upgrade`
@@ -149,6 +120,9 @@ postgresql = [
 override-dependencies = [
     # temporary force a newer python-pptx
     "python-pptx>=1.0.2",
+    # Force torch version with available wheels for macOS x86_64 (Intel Macs)
+    # torch 2.0.1 is the last version with macOS x86_64 wheels
+    "torch>=2.0.0,<2.1.0; python_full_version < '3.12'",
 ]
 
 [project.scripts]
@@ -177,7 +151,7 @@ markers = [
     "benchmark",
     "unit: Unit tests",
     "integration: Integration tests",
-    "slow: Slow-running tests"
+    "slow: Slow-running tests",
 ]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
@@ -206,7 +180,11 @@ directory = "coverage"
 
 [tool.ruff]
 target-version = "py310"
-exclude = ["src/backend/base/primeagent/alembic/*", "src/frontend/tests/assets/*", "src/wfx/src/wfx/_assets/component_index.json"]
+exclude = [
+    "src/backend/base/primeagent/alembic/*",
+    "src/frontend/tests/assets/*",
+    "src/wfx/src/wfx/_assets/component_index.json",
+]
 line-length = 120
 
 [tool.ruff.lint]
@@ -219,29 +197,29 @@ flake8-bugbear.extend-immutable-calls = [
 ]
 flake8-type-checking.runtime-evaluated-base-classes = [
     "pydantic.BaseModel",
-    "typing.TypedDict",  # Needed by fastapi
-    "typing_extensions.TypedDict",  # Needed by fastapi
+    "typing.TypedDict",            # Needed by fastapi
+    "typing_extensions.TypedDict", # Needed by fastapi
 ]
 pydocstyle.convention = "google"
 select = ["ALL"]
 ignore = [
-    "C90", # McCabe complexity
-    "CPY", # Missing copyright
-    "COM812", # Messes with the formatter
-    "ERA", # Eradicate commented-out code
-    "FIX002", # Line contains TODO
-    "ISC001", # Messes with the formatter
+    "C90",     # McCabe complexity
+    "CPY",     # Missing copyright
+    "COM812",  # Messes with the formatter
+    "ERA",     # Eradicate commented-out code
+    "FIX002",  # Line contains TODO
+    "ISC001",  # Messes with the formatter
     "PERF203", # Rarely useful
-    "PLR09", # Too many something (arg, statements, etc)
-    "RUF012", # Pydantic models are currently not well detected. See https://github.com/astral-sh/ruff/issues/13630
-    "TD002", # Missing author in TODO
-    "TD003", # Missing issue link in TODO
-    "TRY301", # A bit too harsh (Abstract `raise` to an inner function)
+    "PLR09",   # Too many something (arg, statements, etc)
+    "RUF012",  # Pydantic models are currently not well detected. See https://github.com/astral-sh/ruff/issues/13630
+    "TD002",   # Missing author in TODO
+    "TD003",   # Missing issue link in TODO
+    "TRY301",  # A bit too harsh (Abstract `raise` to an inner function)
     "PLC0415", # Inline imports
-    "D10", # Missing docstrings
+    "D10",     # Missing docstrings
     "PLW1641", # Object does not implement `__hash__` method (mutable objects shouldn't be hashable)
     # Rules that are TODOs
-    "ANN"
+    "ANN",
 ]
 
 # Preview rules that are not yet activated
@@ -251,87 +229,87 @@ external = ["RUF027"]
 "scripts/*" = ["D1", "INP", "T201"]
 "src/backend/base/primeagent/alembic/versions/*" = ["INP001", "D415", "PGH003"]
 "src/backend/base/primeagent/custom/__init__.py" = [
-    "I001",  # Import order affects initialization - must import custom module first
+    "I001", # Import order affects initialization - must import custom module first
 ]
 "src/backend/base/primeagent/api/v1/*" = [
-    "TCH",  # FastAPI needs to evaluate types at runtime
+    "TCH", # FastAPI needs to evaluate types at runtime
 ]
 "src/backend/base/primeagent/api/v2/*" = [
-    "TCH",  # FastAPI needs to evaluate types at runtime
+    "TCH", # FastAPI needs to evaluate types at runtime
 ]
 "src/backend/base/primeagent/__main__.py" = [
-    "B008",  # Typer CLI requires function calls in defaults
+    "B008", # Typer CLI requires function calls in defaults
 ]
 "src/backend/base/primeagent/services/cache/*" = [
-    "S301",  # Pickle usage is intentional for caching
+    "S301", # Pickle usage is intentional for caching
 ]
 "src/backend/base/primeagent/services/tracing/*" = [
-    "SLF001",  # Third-party library private member access (langwatch, opik)
+    "SLF001", # Third-party library private member access (langwatch, opik)
 ]
 "src/wfx/src/wfx/base/curl/parse.py" = [
-    "S105",  # False positive: 'token' variable name, not a password
+    "S105", # False positive: 'token' variable name, not a password
 ]
 "src/wfx/src/wfx/services/auth/service.py" = [
-    "ARG002",  # No-op impl: unused args required by interface
+    "ARG002", # No-op impl: unused args required by interface
     "EM101",  # NotImplementedError messages as literals
     "TC003",  # Type-only imports used in signatures
 ]
 "src/wfx/src/wfx/base/mcp/util.py" = [
-    "SLF001",  # MCP library private member access
+    "SLF001", # MCP library private member access
 ]
 "src/wfx/src/wfx/cli/common.py" = [
-    "S104",  # Intentional binding to all interfaces for server
-    "S105",  # False positive: GITHUB_TOKEN_ENV is an env var name
+    "S104", # Intentional binding to all interfaces for server
+    "S105", # False positive: GITHUB_TOKEN_ENV is an env var name
 ]
 "src/wfx/src/wfx/components/__init__.py" = [
-    "SLF001",  # Accessing _dynamic_imports from modules
+    "SLF001", # Accessing _dynamic_imports from modules
 ]
 "src/wfx/src/wfx/components/data/save_file.py" = [
-    "SLF001",  # Google API client private member access
+    "SLF001", # Google API client private member access
 ]
 "src/wfx/src/wfx/components/datastax/astradb_vectorstore.py" = [
-    "S110",  # Try-except-pass for optional metadata
+    "S110", # Try-except-pass for optional metadata
 ]
 "src/wfx/src/wfx/components/google/google_generative_ai_embeddings.py" = [
-    "SLF001",  # Google AI library private member access
+    "SLF001", # Google AI library private member access
 ]
 "src/wfx/src/wfx/components/knowledge_bases/retrieval.py" = [
-    "SLF001",  # Chroma client private member access
+    "SLF001", # Chroma client private member access
 ]
 "src/wfx/src/wfx/components/mongodb/mongodb_atlas.py" = [
-    "SLF001",  # MongoDB collection private member access
+    "SLF001", # MongoDB collection private member access
 ]
 "src/wfx/src/wfx/components/tools/{python_code_structured_tool.py,searxng.py}" = [
-    "S102",  # Use of exec/eval for dynamic code execution
-    "SLF001",  # Component internal member access
+    "S102",   # Use of exec/eval for dynamic code execution
+    "SLF001", # Component internal member access
 ]
 "src/wfx/src/wfx/components/vectorstores/astradb.py" = [
-    "S110",  # Try-except-pass for optional metadata
+    "S110", # Try-except-pass for optional metadata
 ]
 "src/wfx/src/wfx/custom/{code_parser/code_parser.py,validate.py}" = [
-    "S102",  # Use of exec for code validation
+    "S102", # Use of exec for code validation
 ]
 "src/wfx/src/wfx/custom/custom_component/component.py" = [
-    "SLF001",  # Component internal state management
+    "SLF001", # Component internal state management
 ]
 "src/wfx/src/wfx/custom/directory_reader/directory_reader.py" = [
-    "SLF001",  # Component introspection
+    "SLF001", # Component introspection
 ]
 "src/wfx/src/wfx/custom/utils.py" = [
-    "SLF001",  # Component code analysis
+    "SLF001", # Component code analysis
 ]
 "src/wfx/src/wfx/graph/graph/ascii.py" = [
-    "SLF001",  # Grandalf library private member access
+    "SLF001", # Grandalf library private member access
 ]
 "src/wfx/src/wfx/inputs/input_mixin.py" = [
-    "S105",  # False positive: PASSWORD is a type constant
+    "S105", # False positive: PASSWORD is a type constant
 ]
 "src/wfx/src/wfx/schema/table.py" = [
-    "S105",  # False positive: PASSWORD is a formatter type
+    "S105", # False positive: PASSWORD is a formatter type
 ]
 "src/wfx/src/wfx/services/mcp_composer/service.py" = [
-    "S104",  # Intentional binding to all interfaces for server
-    "S110",  # Try-except-pass for optional error logging
+    "S104", # Intentional binding to all interfaces for server
+    "S110", # Try-except-pass for optional error logging
 ]
 "src/backend/tests/*" = [
     "D1",
@@ -386,7 +364,7 @@ external = ["RUF027"]
 ]
 
 [tool.ruff.lint.flake8-builtins]
-builtins-allowed-modules = [ "io", "logging", "socket"]
+builtins-allowed-modules = ["io", "logging", "socket"]
 
 [tool.mypy]
 plugins = ["pydantic.mypy"]
