@@ -11,6 +11,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from wfx.base.mcp.util import MCPSessionManager, MCPStdioClient, MCPStreamableHttpClient
 from wfx.components.models_and_agents.mcp_component import MCPToolsComponent
+from wfx.inputs.inputs import BoolInput, MessageTextInput, NestedDictInput
+from wfx.schema.json_schema import create_input_schema_from_json_schema
 
 from tests.base import ComponentTestBaseWithoutClient, VersionComponentMapping
 
@@ -52,6 +54,82 @@ class TestMCPToolsComponent(ComponentTestBaseWithoutClient):
         # Check that the component has a session manager
         session_manager = component.stdio_client._get_session_manager()
         assert isinstance(session_manager, MCPSessionManager)
+
+
+class TestMCPToolsComponentSchemaHandling:
+    @pytest.fixture
+    def component(self):
+        return MCPToolsComponent()
+
+    @staticmethod
+    def _browser_use_schema():
+        return {
+            "type": "object",
+            "properties": {
+                "task": {"type": "string"},
+                "model": {
+                    "anyOf": [{"type": "string"}, {"type": "null"}],
+                    "default": "claude-sonnet-4.6",
+                },
+                "profile_id": {
+                    "anyOf": [{"type": "string"}, {"type": "null"}],
+                    "default": None,
+                },
+                "keep_alive": {
+                    "anyOf": [{"type": "boolean"}, {"type": "null"}],
+                    "default": False,
+                },
+                "output_schema": {
+                    "anyOf": [{"type": "object"}, {"type": "null"}],
+                    "default": None,
+                },
+                "proxy_country": {
+                    "anyOf": [{"type": "string"}, {"type": "null"}],
+                    "default": "us",
+                },
+            },
+            "required": ["task"],
+        }
+
+    @pytest.mark.asyncio
+    async def test_validate_schema_inputs_preserves_mcp_defaults(self, component):
+        mock_tool = MagicMock()
+        mock_tool.name = "run_session"
+        mock_tool.args_schema = create_input_schema_from_json_schema(self._browser_use_schema())
+
+        inputs = await component._validate_schema_inputs(mock_tool)
+        input_map = {input_.name: input_ for input_ in inputs}
+
+        assert isinstance(input_map["task"], MessageTextInput)
+        assert input_map["task"].required is True
+
+        assert isinstance(input_map["model"], MessageTextInput)
+        assert input_map["model"].value == "claude-sonnet-4.6"
+
+        assert isinstance(input_map["keep_alive"], BoolInput)
+        assert input_map["keep_alive"].value is False
+
+        assert isinstance(input_map["output_schema"], NestedDictInput)
+        assert input_map["output_schema"].value is None
+
+        assert isinstance(input_map["proxy_country"], MessageTextInput)
+        assert input_map["proxy_country"].value == "us"
+
+    def test_build_tool_kwargs_omits_blank_optional_values(self, component):
+        args_schema = create_input_schema_from_json_schema(self._browser_use_schema())
+        component.task = "Open docs homepage"
+        component.model = ""
+        component.profile_id = ""
+        component.keep_alive = False
+        component.output_schema = {}
+        component.proxy_country = ""
+
+        kwargs = component._build_tool_kwargs(args_schema)
+
+        assert kwargs == {
+            "task": "Open docs homepage",
+            "keep_alive": False,
+        }
 
 
 class TestMCPToolsComponentIntegration:
@@ -654,6 +732,194 @@ class TestMCPComponentConfigPriority:
             mock_get_server.assert_called_once()
 
             # Connect should be called with API-provided config as fallback
+
+    # Tests below patch `builtins.__import__` to simulate import failures. This is a
+    # heavyweight approach — the patch intercepts *every* import executed while active,
+    # including unrelated library code pulled in by awaits, mocks, or assertions — but
+    # targeted alternatives (sys.modules / importlib) do not reliably reproduce the
+    # `ModuleNotFoundError` raised from an `import primeagent.*` statement inside the
+    # code under test. The `real_import` fallback forwards all non-matching names to
+    # the real import machinery; the `name`-prefix guard in each fake_import is kept
+    # as tight as possible so surrounding test plumbing is not affected.
+
+    @pytest.mark.asyncio
+    async def test_update_tool_list_falls_back_to_value_config_when_primeagent_absent(self, component):
+        """Test WFX standalone mode falls back to value config when Primeagent is unavailable.
+
+        Regression test: when wfx is run without the full Primeagent package installed
+        (e.g., serving a flow via `wfx`), importing `primeagent.api.v2.mcp` raises
+        ModuleNotFoundError. The component must gracefully fall back to the server
+        config embedded in the flow JSON (server_config_from_value) rather than failing.
+        """
+        import builtins
+
+        value_config = {
+            "command": "uvx mcp-server-from-value",
+            "args": ["--standalone"],
+        }
+        component.mcp_server = {"name": "standalone_server", "config": value_config}
+        component._user_id = "test_user_123"
+
+        real_import = builtins.__import__
+        primeagent_prefixes = ("primeagent.api.v2.mcp", "primeagent.services.database")
+
+        def fake_import(name, import_globals=None, import_locals=None, fromlist=(), level=0):
+            if any(name == p or name.startswith(p + ".") for p in primeagent_prefixes):
+                raise ModuleNotFoundError(name=name)
+            return real_import(name, import_globals, import_locals, fromlist, level)
+
+        with (
+            patch("builtins.__import__", side_effect=fake_import),
+            patch("wfx.components.models_and_agents.mcp_component.update_tools") as mock_update_tools,
+        ):
+            mock_update_tools.return_value = (None, [], {})
+
+            # Must not raise — should fall back to value config
+            _tools, server_info = await component.update_tool_list()
+
+            # update_tools should have been called with the value config as a fallback
+            mock_update_tools.assert_called_once()
+            call_kwargs = mock_update_tools.call_args.kwargs
+            assert call_kwargs["server_name"] == "standalone_server"
+            assert call_kwargs["server_config"]["command"] == "uvx mcp-server-from-value"
+            assert call_kwargs["server_config"]["args"] == ["--standalone"]
+
+            # server_info should echo the resolved value config
+            assert server_info["name"] == "standalone_server"
+            assert server_info["config"]["command"] == "uvx mcp-server-from-value"
+
+    @pytest.mark.asyncio
+    async def test_update_tool_list_surfaces_transitive_import_error_instead_of_falling_back(self, component):
+        """A transitive ModuleNotFoundError inside Primeagent must NOT be silently swallowed.
+
+        If a Primeagent dependency (e.g. sqlmodel) fails to import while loading
+        primeagent.services.database.models.user.crud, that's a real bug in the full
+        Primeagent stack — not WFX standalone mode. We must not silently fall back
+        to the flow-embedded config, because the database config is supposed to
+        take precedence when Primeagent is available.
+        """
+        import builtins
+
+        component.mcp_server = {
+            "name": "broken_server",
+            "config": {"command": "uvx mcp-server-from-value"},
+        }
+        component._user_id = "test_user_123"
+
+        real_import = builtins.__import__
+
+        transitive_error_msg = "No module named 'sqlmodel'"
+
+        def fake_import(name, import_globals=None, import_locals=None, fromlist=(), level=0):
+            # Simulate a transitive dependency failure: sqlmodel is the missing module,
+            # not a Primeagent module. This should NOT be treated as standalone mode.
+            if name.startswith("primeagent.services.database"):
+                raise ModuleNotFoundError(transitive_error_msg, name="sqlmodel")
+            return real_import(name, import_globals, import_locals, fromlist, level)
+
+        with (
+            patch("builtins.__import__", side_effect=fake_import),
+            patch("wfx.components.models_and_agents.mcp_component.update_tools") as mock_update_tools,
+        ):
+            mock_update_tools.return_value = (None, [], {})
+
+            # The transitive ImportError must surface (wrapped as ValueError by the
+            # outer handler in update_tool_list); update_tools must NOT be called.
+            with pytest.raises(ValueError, match="Error updating tool list") as exc_info:
+                await component.update_tool_list()
+
+            # The original ModuleNotFoundError for sqlmodel should be preserved as __cause__
+            assert isinstance(exc_info.value.__cause__, ModuleNotFoundError)
+            assert exc_info.value.__cause__.name == "sqlmodel"
+
+            mock_update_tools.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_update_tool_list_surfaces_plain_import_error_instead_of_falling_back(self, component):
+        """A plain ImportError (attribute missing, not module missing) must surface.
+
+        Regression test for the intentional `except ModuleNotFoundError` narrowing: if
+        an installed Primeagent no longer exposes `get_server` or `get_user_by_id` (real
+        API break), the resulting ImportError — which is NOT a ModuleNotFoundError —
+        must NOT be swallowed as standalone mode. It must propagate to the outer
+        handler and surface as a `ValueError("Error updating tool list: ...")`.
+        """
+        import builtins
+
+        component.mcp_server = {
+            "name": "broken_server",
+            "config": {"command": "uvx mcp-server-from-value"},
+        }
+        component._user_id = "test_user_123"
+
+        real_import = builtins.__import__
+
+        def fake_import(name, import_globals=None, import_locals=None, fromlist=(), level=0):
+            # The module imports fine, but a specific attribute is missing — this
+            # raises plain ImportError (not ModuleNotFoundError) at the `from ... import`
+            # line. Emulate that by raising ImportError when this module is requested
+            # with a fromlist, just as `from primeagent.api.v2.mcp import get_server` would.
+            if name == "primeagent.api.v2.mcp" and fromlist and "get_server" in fromlist:
+                msg = "cannot import name 'get_server' from 'primeagent.api.v2.mcp'"
+                raise ImportError(msg, name="primeagent.api.v2.mcp")
+            return real_import(name, import_globals, import_locals, fromlist, level)
+
+        with (
+            patch("builtins.__import__", side_effect=fake_import),
+            patch("wfx.components.models_and_agents.mcp_component.update_tools") as mock_update_tools,
+        ):
+            mock_update_tools.return_value = (None, [], {})
+
+            with pytest.raises(ValueError, match="Error updating tool list") as exc_info:
+                await component.update_tool_list()
+
+            # The original ImportError should be preserved as __cause__ — it must not
+            # have been silently converted into a fallback path.
+            assert isinstance(exc_info.value.__cause__, ImportError)
+            assert not isinstance(exc_info.value.__cause__, ModuleNotFoundError)
+
+            mock_update_tools.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_update_tool_list_surfaces_wfx_services_deps_missing(self, component):
+        """A ModuleNotFoundError for an wfx module (not primeagent.*) must surface.
+
+        Edge-case regression test: if `wfx.services.deps` itself is missing (a
+        packaging error inside wfx), the prefix check `missing_module == "primeagent"
+        or missing_module.startswith("primeagent.")` correctly returns False and the
+        error is re-raised. Locks in the intended precedence rule so a future rewrite
+        of the prefix check cannot silently convert this into a standalone fallback.
+        """
+        import builtins
+
+        component.mcp_server = {
+            "name": "broken_server",
+            "config": {"command": "uvx mcp-server-from-value"},
+        }
+        component._user_id = "test_user_123"
+
+        real_import = builtins.__import__
+
+        deps_missing_msg = "No module named 'wfx.services.deps'"
+
+        def fake_import(name, import_globals=None, import_locals=None, fromlist=(), level=0):
+            if name == "wfx.services.deps" or name.startswith("wfx.services.deps."):
+                raise ModuleNotFoundError(deps_missing_msg, name="wfx.services.deps")
+            return real_import(name, import_globals, import_locals, fromlist, level)
+
+        with (
+            patch("builtins.__import__", side_effect=fake_import),
+            patch("wfx.components.models_and_agents.mcp_component.update_tools") as mock_update_tools,
+        ):
+            mock_update_tools.return_value = (None, [], {})
+
+            with pytest.raises(ValueError, match="Error updating tool list") as exc_info:
+                await component.update_tool_list()
+
+            assert isinstance(exc_info.value.__cause__, ModuleNotFoundError)
+            assert exc_info.value.__cause__.name == "wfx.services.deps"
+
+            mock_update_tools.assert_not_called()
 
 
 # ============================================================================

@@ -92,7 +92,7 @@ def get_all_reexport_modules():
     )
 
 
-class TestLfxReexportModules:
+class TestWfxReexportModules:
     """Test that all primeagent modules that re-export from wfx work correctly."""
 
     @classmethod

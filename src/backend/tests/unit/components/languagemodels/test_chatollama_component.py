@@ -706,7 +706,7 @@ class TestChatOllamaComponent(ComponentTestBaseWithoutClient):
         """Test that the format field works with a schema generated from Pydantic's model_json_schema() method.
 
         This test reproduces the exact use case described in issue #7122:
-        https://github.com/khulnasoft-bot/primeagent/issues/7122
+        https://github.com/khulnasoft/primeagent/issues/7122
         """
         from pydantic import BaseModel, Field
 
@@ -1260,3 +1260,7 @@ class TestChatOllamaComponent(ComponentTestBaseWithoutClient):
         assert "format" in call_args, "format should be in call when enabled"
         assert call_args["format"] == "json"
         assert model == mock_instance
+
+    @pytest.fixture(autouse=True)
+    def disable_ssrf_protection(self, monkeypatch):
+        monkeypatch.setenv("PRIMEAGENT_SSRF_PROTECTION_ENABLED", "false")

@@ -6,8 +6,8 @@ re-exported from different modules (e.g., wfx.schema.Message vs primeagent.schem
 
 from primeagent.schema import Data as PrimeagentData
 from primeagent.schema import Message as PrimeagentMessage
-from wfx.schema.data import Data as LfxData
-from wfx.schema.message import Message as LfxMessage
+from wfx.schema.data import Data as WfxData
+from wfx.schema.message import Message as WfxMessage
 
 
 class TestDuckTypingData:
@@ -15,17 +15,17 @@ class TestDuckTypingData:
 
     def test_wfx_data_isinstance_primeagent_data(self):
         """Test that wfx.Data instance is recognized as primeagent.Data."""
-        wfx_data = LfxData(data={"key": "value"})
+        wfx_data = WfxData(data={"key": "value"})
         assert isinstance(wfx_data, PrimeagentData)
 
     def test_primeagent_data_isinstance_wfx_data(self):
         """Test that primeagent.Data instance is recognized as wfx.Data."""
         primeagent_data = PrimeagentData(data={"key": "value"})
-        assert isinstance(primeagent_data, LfxData)
+        assert isinstance(primeagent_data, WfxData)
 
     def test_data_equality_across_modules(self):
         """Test that Data objects from different modules are equal."""
-        wfx_data = LfxData(data={"key": "value"})
+        wfx_data = WfxData(data={"key": "value"})
         primeagent_data = PrimeagentData(data={"key": "value"})
         assert wfx_data == primeagent_data
 
@@ -35,14 +35,14 @@ class TestDuckTypingData:
         def process_data(data: PrimeagentData) -> str:
             return data.get_text()
 
-        wfx_data = LfxData(data={"text": "hello"})
+        wfx_data = WfxData(data={"text": "hello"})
         # Should not raise type error
         result = process_data(wfx_data)
         assert result == "hello"
 
     def test_data_model_dump_compatible(self):
         """Test that model_dump works across module boundaries."""
-        wfx_data = LfxData(data={"key": "value"})
+        wfx_data = WfxData(data={"key": "value"})
         primeagent_data = PrimeagentData(**wfx_data.model_dump())
         assert primeagent_data.data == {"key": "value"}
 
@@ -52,17 +52,17 @@ class TestDuckTypingMessage:
 
     def test_wfx_message_isinstance_primeagent_message(self):
         """Test that wfx.Message instance is recognized as primeagent.Message."""
-        wfx_message = LfxMessage(text="hello")
+        wfx_message = WfxMessage(text="hello")
         assert isinstance(wfx_message, PrimeagentMessage)
 
     def test_primeagent_message_isinstance_wfx_message(self):
         """Test that primeagent.Message instance is recognized as wfx.Message."""
         primeagent_message = PrimeagentMessage(text="hello")
-        assert isinstance(primeagent_message, LfxMessage)
+        assert isinstance(primeagent_message, WfxMessage)
 
     def test_message_equality_across_modules(self):
         """Test that Message objects from different modules are equal."""
-        wfx_message = LfxMessage(text="hello", sender="user")
+        wfx_message = WfxMessage(text="hello", sender="user")
         primeagent_message = PrimeagentMessage(text="hello", sender="user")
         # Note: Direct equality might not work due to timestamps
         assert wfx_message.text == primeagent_message.text
@@ -74,14 +74,14 @@ class TestDuckTypingMessage:
         def process_message(msg: PrimeagentMessage) -> str:
             return f"Processed: {msg.text}"
 
-        wfx_message = LfxMessage(text="hello")
+        wfx_message = WfxMessage(text="hello")
         # Should not raise type error
         result = process_message(wfx_message)
         assert result == "Processed: hello"
 
     def test_message_model_dump_compatible(self):
         """Test that model_dump works across module boundaries."""
-        wfx_message = LfxMessage(text="hello", sender="user")
+        wfx_message = WfxMessage(text="hello", sender="user")
         dump = wfx_message.model_dump()
         primeagent_message = PrimeagentMessage(**dump)
         assert primeagent_message.text == "hello"
@@ -89,10 +89,10 @@ class TestDuckTypingMessage:
 
     def test_message_inherits_data_duck_typing(self):
         """Test that Message inherits duck-typing from Data."""
-        wfx_message = LfxMessage(text="hello")
+        wfx_message = WfxMessage(text="hello")
         # Should work as Data too
         assert isinstance(wfx_message, PrimeagentData)
-        assert isinstance(wfx_message, LfxData)
+        assert isinstance(wfx_message, WfxData)
 
 
 class TestDuckTypingWithInputs:
@@ -102,9 +102,9 @@ class TestDuckTypingWithInputs:
         """Test that MessageInput accepts wfx.Message."""
         from wfx.inputs.inputs import MessageInput
 
-        wfx_message = LfxMessage(text="hello")
+        wfx_message = WfxMessage(text="hello")
         msg_input = MessageInput(name="test", value=wfx_message)
-        assert isinstance(msg_input.value, (LfxMessage, PrimeagentMessage))
+        assert isinstance(msg_input.value, (WfxMessage, PrimeagentMessage))
 
     def test_message_input_converts_cross_module(self):
         """Test that MessageInput handles cross-module Messages."""
@@ -119,7 +119,7 @@ class TestDuckTypingWithInputs:
         """Test that DataInput accepts wfx.Data."""
         from wfx.inputs.inputs import DataInput
 
-        wfx_data = LfxData(data={"key": "value"})
+        wfx_data = WfxData(data={"key": "value"})
         data_input = DataInput(name="test", value=wfx_data)
         assert data_input.value == wfx_data
 
@@ -136,7 +136,7 @@ class TestDuckTypingEdgeCases:
 
         custom = CustomModel(value="test")
         # Should not be considered a Data
-        assert not isinstance(custom, LfxData)
+        assert not isinstance(custom, WfxData)
         assert not isinstance(custom, PrimeagentData)
 
     def test_non_pydantic_model_not_cross_module(self):
@@ -147,7 +147,7 @@ class TestDuckTypingEdgeCases:
                 self.data = {}
 
         fake = FakeData()
-        assert not isinstance(fake, LfxData)
+        assert not isinstance(fake, WfxData)
         assert not isinstance(fake, PrimeagentData)
 
     def test_missing_fields_not_cross_module(self):
@@ -159,7 +159,7 @@ class TestDuckTypingEdgeCases:
 
         partial = PartialData(text_key="text")
         # Should not be considered a full Data (missing data field)
-        assert not isinstance(partial, LfxData)
+        assert not isinstance(partial, WfxData)
         assert not isinstance(partial, PrimeagentData)
 
 
@@ -194,7 +194,7 @@ class TestDuckTypingInputMixin:
         from wfx.inputs.inputs import MessageInput
 
         # Create with wfx Message
-        wfx_msg = LfxMessage(text="hello")
+        wfx_msg = WfxMessage(text="hello")
         input1 = MessageInput(name="test1", value=wfx_msg)
 
         # Create with primeagent Message
