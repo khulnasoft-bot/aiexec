@@ -10,10 +10,107 @@ from primeagent.helpers.windows_postgres_helper import configure_windows_postgre
 configure_windows_postgres_event_loop(source="package_init")
 
 import importlib  # noqa: E402
+import importlib.abc  # noqa: E402
+import importlib.machinery  # noqa: E402
 import importlib.util  # noqa: E402
 import sys  # noqa: E402
 from types import ModuleType  # noqa: E402
 from typing import Any  # noqa: E402
+
+# ---------------------------------------------------------------------------
+# Dynamic ``primeagent.components.*`` -> ``wfx.components.*`` bridge
+# ---------------------------------------------------------------------------
+#
+# Saved flows in the wild import their components via ``primeagent.components.<sub>``
+# (``from primeagent.components.processing.converter import convert_to_dataframe``,
+# ``import primeagent.components.knowledge_bases.retrieval``, etc.).  The wfx
+# extraction moved every component module into ``wfx.components.*``; we
+# previously kept a stack of physical shim files (one per subpackage)
+# under ``src/backend/base/primeagent/components/`` to forward those imports.
+# Maintaining one shim file per subpackage does not scale -- every new wfx
+# component requires a parallel primeagent shim, and forgetting to add one
+# silently breaks pre-existing flows at load time.
+#
+# Replace the physical-shim stack with a single meta path finder that
+# dynamically resolves any ``primeagent.components.<rest>`` import to the
+# corresponding ``wfx.components.<rest>`` module.  The finder returns the
+# already-loaded wfx module from ``create_module`` so the primeagent- and
+# wfx-prefixed names share a single underlying module object; class
+# identity is preserved across the bridge (critical for ``isinstance``
+# checks against types resolved through either path).
+#
+# Special-case overrides cover the few subpackages whose name diverged
+# during the move (e.g. ``knowledge_bases`` -> ``files_and_knowledge``).
+
+
+class _PrimeagentComponentsAliasLoader(importlib.abc.Loader):
+    """Loader that fronts ``wfx.components.<rest>`` as ``primeagent.components.<rest>``.
+
+    ``create_module`` returns the wfx module object directly so attribute
+    access on either name resolves to the same backing module.
+    ``exec_module`` is intentionally a no-op because the wfx module is
+    already fully initialized by ``importlib.import_module`` inside
+    ``create_module``.
+    """
+
+    def __init__(self, primeagent_name: str, wfx_name: str) -> None:
+        self.primeagent_name = primeagent_name
+        self.wfx_name = wfx_name
+
+    def create_module(self, spec):  # noqa: ARG002 - protocol signature
+        return importlib.import_module(self.wfx_name)
+
+    def exec_module(self, module):  # noqa: ARG002 - module already initialised
+        return None
+
+
+class _PrimeagentComponentsAliasFinder(importlib.abc.MetaPathFinder):
+    """Bridge ``primeagent.components.<rest>`` -> ``wfx.components.<rest>`` for arbitrary subpackages.
+
+    Replaces a stack of per-subpackage physical shim files with a single
+    dynamic resolver, so a new wfx component module never requires a
+    parallel primeagent shim.  Saved flows that imported components via
+    the legacy ``primeagent.components.*`` paths (and the integration tests
+    that document the contract) continue to load without modification.
+    """
+
+    _BRIDGE_PREFIX = "primeagent.components"
+    _WFX_PREFIX = "wfx.components"
+
+    # First-segment renames applied when translating ``primeagent.components.<head>[.<tail>]``
+    # to ``wfx.components.<renamed>[.<tail>]``.  ``knowledge_bases`` was
+    # renamed to ``files_and_knowledge`` in wfx during the move; the
+    # primeagent-side import path stays as ``knowledge_bases`` so the
+    # already-shipped saved flows continue to resolve.
+    _PACKAGE_OVERRIDES = {
+        "knowledge_bases": "files_and_knowledge",
+    }
+
+    def find_spec(self, fullname, path=None, target=None):  # noqa: ARG002 - protocol signature
+        if fullname != self._BRIDGE_PREFIX and not fullname.startswith(self._BRIDGE_PREFIX + "."):
+            return None
+        rel = fullname[len(self._BRIDGE_PREFIX) :].lstrip(".")
+        if rel:
+            head, _, tail = rel.partition(".")
+            head = self._PACKAGE_OVERRIDES.get(head, head)
+            wfx_name = f"{self._WFX_PREFIX}.{head}" + (f".{tail}" if tail else "")
+        else:
+            wfx_name = self._WFX_PREFIX
+        try:
+            wfx_spec = importlib.util.find_spec(wfx_name)
+        except (ImportError, ValueError, ModuleNotFoundError, AttributeError):
+            return None
+        if wfx_spec is None:
+            return None
+        # Mirror the wfx target's package-ness so ``__path__`` is set
+        # correctly on the alias and downstream ``import`` statements that
+        # treat the alias as a package keep working.
+        is_package = wfx_spec.submodule_search_locations is not None
+        return importlib.machinery.ModuleSpec(
+            fullname,
+            _PrimeagentComponentsAliasLoader(fullname, wfx_name),
+            is_package=is_package,
+        )
 
 
 class PrimeagentCompatibilityModule(ModuleType):
@@ -61,6 +158,14 @@ def _setup_compatibility_modules():
     # First, set up the base attribute on this module (primeagent)
     current_module = sys.modules[__name__]
 
+    # Install the dynamic ``primeagent.components.<rest>`` -> ``wfx.components.<rest>``
+    # bridge BEFORE any explicit module_mappings entries are registered.  The
+    # finder handles every subpackage (including ones added later when a new
+    # bundle is extracted), so the explicit per-helper entries that used to
+    # live in module_mappings are no longer needed here.
+    if not any(isinstance(f, _PrimeagentComponentsAliasFinder) for f in sys.meta_path):
+        sys.meta_path.insert(0, _PrimeagentComponentsAliasFinder())
+
     # Define all the modules we need to support
     module_mappings = {
         # Core base module
@@ -76,16 +181,9 @@ def _setup_compatibility_modules():
         "primeagent.template": "wfx.template",
         "primeagent.template.field": "wfx.template.field",
         "primeagent.template.field.base": "wfx.template.field.base",
-        # Components modules
-        "primeagent.components": "wfx.components",
-        "primeagent.components.helpers": "wfx.components.helpers",
-        "primeagent.components.helpers.calculator_core": "wfx.components.helpers.calculator_core",
-        "primeagent.components.helpers.create_list": "wfx.components.helpers.create_list",
-        "primeagent.components.helpers.current_date": "wfx.components.helpers.current_date",
-        "primeagent.components.helpers.id_generator": "wfx.components.helpers.id_generator",
-        "primeagent.components.helpers.memory": "wfx.components.helpers.memory",
-        "primeagent.components.helpers.output_parser": "wfx.components.helpers.output_parser",
-        "primeagent.components.helpers.store_message": "wfx.components.helpers.store_message",
+        # ``primeagent.components.*`` is bridged dynamically by
+        # ``_PrimeagentComponentsAliasFinder`` registered above, so no
+        # entries are needed here.
         # Individual modules that exist in wfx
         "primeagent.base.agents": "wfx.base.agents",
         "primeagent.base.chains": "wfx.base.chains",
@@ -153,11 +251,15 @@ def _setup_compatibility_modules():
                 continue
 
     # Handle modules that exist only in primeagent (like knowledge_bases)
-    # These need special handling because they're not in wfx yet
+    # These need special handling because they're not in wfx yet.
+    # ``primeagent.components.knowledge_bases`` is no longer listed here:
+    # ``_PrimeagentComponentsAliasFinder`` rewrites it to
+    # ``wfx.components.files_and_knowledge`` via the override map and the
+    # physical shim file used to live under ``components/knowledge_bases/``
+    # has been removed.
     primeagent_only_modules = {
         "primeagent.base.data.kb_utils": "primeagent.base.data.kb_utils",
         "primeagent.base.knowledge_bases": "primeagent.base.knowledge_bases",
-        "primeagent.components.knowledge_bases": "primeagent.components.knowledge_bases",
     }
 
     for primeagent_name in primeagent_only_modules:
@@ -197,20 +299,6 @@ def _setup_compatibility_modules():
                             if parent_module is not None:
                                 parent_module.knowledge_bases = module
 
-                elif primeagent_name == "primeagent.components.knowledge_bases":
-                    components_kb_dir = base_dir / "components" / "knowledge_bases"
-                    components_kb_init_file = components_kb_dir / "__init__.py"
-                    if components_kb_init_file.exists():
-                        spec = importlib.util.spec_from_file_location(primeagent_name, components_kb_init_file)
-                        if spec is not None and spec.loader is not None:
-                            module = importlib.util.module_from_spec(spec)
-                            sys.modules[primeagent_name] = module
-                            spec.loader.exec_module(module)
-
-                            # Also add to parent module
-                            parent_module = sys.modules.get("primeagent.components")
-                            if parent_module is not None:
-                                parent_module.knowledge_bases = module
             except (ImportError, AttributeError):
                 # If direct file loading fails, skip silently
                 continue
