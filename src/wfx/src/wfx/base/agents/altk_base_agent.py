@@ -11,8 +11,8 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, cast
 
 from altk.core.llm import get_llm
-from langchain.agents import AgentExecutor, BaseMultiActionAgent, BaseSingleActionAgent
 from langchain_anthropic.chat_models import ChatAnthropic
+from langchain_classic.agents import AgentExecutor, BaseMultiActionAgent, BaseSingleActionAgent
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage
 from langchain_core.runnables import Runnable, RunnableBinding
@@ -22,7 +22,7 @@ from pydantic import Field
 
 from wfx.base.agents.callback import AgentAsyncHandler
 from wfx.base.agents.events import ExceptionWithMessageError, process_agent_events
-from wfx.base.agents.utils import data_to_messages, get_chat_output_sender_name
+from wfx.base.agents.utils import data_to_messages, get_chat_output_sender_name, resolve_agent_verbose
 from wfx.components.models_and_agents import AgentComponent
 from wfx.log.logger import logger
 from wfx.memory import delete_message
@@ -201,6 +201,26 @@ class ALTKBaseAgentComponent(AgentComponent):
         super().__init__(**kwargs)
         self.pipeline_manager = ToolPipelineManager()
 
+    def create_agent_runnable(self):
+        """Build the legacy LC tool-calling agent runnable.
+
+        AgentComponent.create_agent_runnable returns a `CompiledStateGraph` from
+        `langchain.agents.create_agent`. ALTK's `run_agent` (below) still wraps
+        that runnable in `AgentExecutor.from_agent_and_tools(...)`, and at run
+        time AgentExecutor's RunnableAgent path tries to accumulate the graph's
+        chunk dicts with `+=`, raising `TypeError: unsupported operand type(s)
+        for +=: 'dict' and 'dict'` (OpenAI) or surfacing as `contents are
+        required` when a Gemini-backed flow is built on top.
+
+        ALTK was designed against the legacy AgentExecutor contract, so route
+        around AgentComponent and call the grandparent ToolCallingAgentComponent
+        path (`create_tool_calling_agent`-based) which returns a Runnable that
+        AgentExecutor can iterate correctly.
+        """
+        from wfx.components.langchain_utilities.tool_calling import ToolCallingAgentComponent
+
+        return ToolCallingAgentComponent.create_agent_runnable(self)
+
     # ---- Hooks for subclasses ----
     def configure_tool_pipeline(self) -> None:
         """Configure the tool pipeline with wrappers. Subclasses override this."""
@@ -283,7 +303,9 @@ class ALTKBaseAgentComponent(AgentComponent):
         else:
             # note the tools are not required to run the agent, hence the validation removed.
             handle_parsing_errors = hasattr(self, "handle_parsing_errors") and self.handle_parsing_errors
-            verbose = hasattr(self, "verbose") and self.verbose
+            # Gate LangChain's stdout chain markers on LANGCHAIN_VERBOSE (off by default)
+            # rather than the always-True component input. See resolve_agent_verbose().
+            verbose = resolve_agent_verbose()
             max_iterations = hasattr(self, "max_iterations") and self.max_iterations
             runnable = AgentExecutor.from_agent_and_tools(
                 agent=agent,
