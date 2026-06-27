@@ -29,7 +29,7 @@ from wfx.type_extraction import post_process_type
 from wfx.utils.async_helpers import run_until_complete
 
 if TYPE_CHECKING:
-    from langchain.callbacks.base import BaseCallbackHandler
+    from langchain_core.callbacks.base import BaseCallbackHandler
 
     from wfx.graph.graph.base import Graph
     from wfx.graph.vertex.base import Vertex
