@@ -8,3 +8,8 @@ AUTO_LOGIN_ERROR = (
     "Set PRIMEAGENT_SKIP_AUTH_AUTO_LOGIN=true to skip this check. "
     "Please update your authentication method."
 )
+AUTO_LOGIN_SESSION_WARNING = (
+    "PRIMEAGENT_AUTO_LOGIN is enabled: /auto_login is issuing a superuser session "
+    "without credentials. Disable AUTO_LOGIN and create a real superuser for any "
+    "non-local or shared deployment."
+)
