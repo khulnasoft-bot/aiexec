@@ -1,16 +1,33 @@
 import { type AxiosError } from "axios";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { ModelOption } from "@/components/core/parameterRenderComponent/components/modelInputComponent";
+import {
+  type AvailableDBProviderId,
+  type DBProviderConfigValue,
+  getDBProviderOption,
+  getDefaultDBProviderConfig,
+  isDBProviderConfigured,
+  resolveUIBackendType,
+  toAPIBackendType,
+} from "@/constants/dbProviderConstants";
 import { api } from "@/controllers/API/api";
 import { getURL } from "@/controllers/API/helpers/constants";
 import { useCreateKnowledgeBase } from "@/controllers/API/queries/knowledge-bases/use-create-knowledge-base";
 import { useGetIngestionJobStatus } from "@/controllers/API/queries/knowledge-bases/use-get-ingestion-job-status";
 import { useGetModelProviders } from "@/controllers/API/queries/models/use-get-model-providers";
+import { useGetGlobalVariables } from "@/controllers/API/queries/variables";
 import useAlertStore from "@/stores/alertStore";
+import {
+  type MetadataPair,
+  metadataPairsToFormValue,
+} from "../components/MetadataEditor";
+import { validateMetadataPairs } from "../components/metadataValidation";
 import {
   DEFAULT_CHUNK_OVERLAP,
   DEFAULT_CHUNK_SIZE,
   DEFAULT_SEPARATOR,
+  KB_INGEST_EXTENSIONS,
   KB_NAME_REGEX,
   MAX_TOTAL_FILE_SIZE,
 } from "../constants";
@@ -22,6 +39,34 @@ import type {
   WizardStep,
 } from "../types";
 import { formatFileSize } from "../utils";
+
+/**
+ * Per-backend required-field check. Returns ``null`` when the config
+ * is acceptable, or a human-readable message otherwise. Mirrors the
+ * server-side validation in each backend's ``_build_vector_store`` so
+ * the user sees the problem inline before the request ever lands.
+ *
+ * Only the actively-registered providers (Chroma + OpenSearch) are
+ * validated here — see ``DBProviderInput`` for the UI side. Stubbed
+ * providers (mongodb / astra / postgres) are rejected up front by the
+ * server schema validator.
+ */
+function validateBackendConfig(
+  backendType: AvailableDBProviderId,
+  config: Record<string, DBProviderConfigValue>,
+): string | null {
+  if (backendType === "chroma_cloud") {
+    // API key is validated by isDBProviderConfigured; no literal fields here.
+    return null;
+  }
+  if (backendType === "opensearch") {
+    const indexName = config.index_name;
+    if (typeof indexName !== "string" || !indexName.trim()) {
+      return "OpenSearch requires an index_name";
+    }
+  }
+  return null;
+}
 
 export function useKnowledgeBaseForm({
   open,
@@ -38,13 +83,20 @@ export function useKnowledgeBaseForm({
     | "hideAdvanced"
     | "existingKnowledgeBaseNames"
   >) {
+  const { t } = useTranslation();
   const isAddSourcesMode = !!existingKnowledgeBase;
 
   // Wizard state
   const [currentStep, setCurrentStep] = useState<WizardStep>(1);
 
-  // Fetch embedding model data from API
-  const { data: modelProviders = [] } = useGetModelProviders({});
+  // Fetch embedding model data from API. Include deprecated entries so the
+  // picker can surface them with a "Deprecated" badge instead of dropping them.
+  const { data: modelProviders = [] } = useGetModelProviders({
+    includeDeprecated: true,
+  });
+  const { data: globalVariables = [], isFetched: areGlobalVariablesFetched } =
+    useGetGlobalVariables();
+  const hasAppliedBackendDefaults = useRef(false);
 
   // Transform provider data into ModelOption[] for embedding models only
   const embeddingModelOptions = useMemo<ModelOption[]>(() => {
@@ -68,9 +120,13 @@ export function useKnowledgeBaseForm({
   // Form state - Step 1
   const [sourceName, setSourceName] = useState("");
   const [files, setFiles] = useState<File[]>([]);
-  const [chunkSize, setChunkSize] = useState(0);
-  const [chunkOverlap, setChunkOverlap] = useState(0);
-  const [separator, setSeparator] = useState("");
+  const [chunkSize, setChunkSize] = useState(DEFAULT_CHUNK_SIZE);
+  const [chunkOverlap, setChunkOverlap] = useState(DEFAULT_CHUNK_OVERLAP);
+  const [separator, setSeparator] = useState(DEFAULT_SEPARATOR);
+  const [metadataPairs, setMetadataPairs] = useState<MetadataPair[]>([]);
+  const [perFileMetadata, setPerFileMetadata] = useState<
+    Record<string, MetadataPair[]>
+  >({});
   const [columnConfig, setColumnConfig] = useState<ColumnConfigRow[]>([
     { column_name: "text", vectorize: true, identifier: true },
   ]);
@@ -84,9 +140,45 @@ export function useKnowledgeBaseForm({
   const [selectedEmbeddingModel, setSelectedEmbeddingModel] = useState<
     ModelOption[]
   >([]);
+  // Defaults keep existing KBs on the local Chroma store. Backend is immutable
+  // after create, so add-sources mode displays the existing backend read-only.
+  const [backendType, setBackendType] =
+    useState<AvailableDBProviderId>("chroma");
+  const [backendConfig, setBackendConfig] = useState<
+    Record<string, DBProviderConfigValue>
+  >({});
+  // Persists per-provider configs across provider switches within the modal
+  // so that switching away and back restores the config seen on first entry.
+  const perProviderConfigsRef = useRef<
+    Partial<
+      Record<AvailableDBProviderId, Record<string, DBProviderConfigValue>>
+    >
+  >({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(!hideAdvanced);
+
+  const defaultBackendSelection = useMemo(
+    () => getDefaultDBProviderConfig(globalVariables),
+    [globalVariables],
+  );
   const [isFilePanelOpen, setIsFilePanelOpen] = useState(false);
+
+  // Combined provider-switch handler. Saves the current config under the
+  // outgoing provider key and restores any previously cached config for the
+  // incoming provider, falling back to the freshly-hydrated config from the
+  // dropdown when no prior selection exists.
+  const handleBackendProviderChange = useCallback(
+    (
+      newType: AvailableDBProviderId,
+      freshConfig: Record<string, DBProviderConfigValue>,
+    ) => {
+      perProviderConfigsRef.current[backendType] = backendConfig;
+      const restored = perProviderConfigsRef.current[newType] ?? freshConfig;
+      setBackendType(newType);
+      setBackendConfig(restored);
+    },
+    [backendType, backendConfig],
+  );
 
   // Preview state
   const [chunkPreviews, setChunkPreviews] = useState<ChunkPreview[]>([]);
@@ -157,7 +249,7 @@ export function useKnowledgeBaseForm({
         existingKnowledgeBase.chunkSize != null ||
         existingKnowledgeBase.chunkOverlap != null ||
         existingKnowledgeBase.separator != null;
-      if (hasAdvancedConfig) {
+      if (hasAdvancedConfig && !hideAdvanced) {
         setShowAdvanced(true);
       }
       if (
@@ -166,46 +258,71 @@ export function useKnowledgeBaseForm({
       ) {
         setColumnConfig(existingKnowledgeBase.columnConfig);
       }
+      setBackendType(
+        resolveUIBackendType(
+          existingKnowledgeBase.backendType,
+          existingKnowledgeBase.backendConfig as
+            | Record<string, unknown>
+            | undefined,
+        ),
+      );
+      setBackendConfig(
+        (existingKnowledgeBase.backendConfig as Record<
+          string,
+          DBProviderConfigValue
+        >) || {},
+      );
     }
   }, [existingKnowledgeBase, open, embeddingModelOptions]);
+
+  useEffect(() => {
+    if (!open) {
+      hasAppliedBackendDefaults.current = false;
+      return;
+    }
+    if (
+      existingKnowledgeBase ||
+      hasAppliedBackendDefaults.current ||
+      !areGlobalVariablesFetched
+    ) {
+      return;
+    }
+
+    setBackendType(defaultBackendSelection.backendType);
+    setBackendConfig(defaultBackendSelection.backendConfig);
+    hasAppliedBackendDefaults.current = true;
+  }, [
+    areGlobalVariablesFetched,
+    defaultBackendSelection,
+    existingKnowledgeBase,
+    open,
+  ]);
 
   const resetForm = useCallback(() => {
     setSourceName("");
     setFiles([]);
-    setChunkSize(0);
-    setChunkOverlap(0);
-    setSeparator("");
+    setChunkSize(DEFAULT_CHUNK_SIZE);
+    setChunkOverlap(DEFAULT_CHUNK_OVERLAP);
+    setSeparator(DEFAULT_SEPARATOR);
     setColumnConfig([
       { column_name: "text", vectorize: true, identifier: true },
     ]);
     setSelectedEmbeddingModel([]);
+    setBackendType("chroma");
+    setBackendConfig({});
+    perProviderConfigsRef.current = {};
+    setMetadataPairs([]);
+    setPerFileMetadata({});
     setChunkPreviews([]);
     setCurrentChunkIndex(0);
     setSelectedPreviewFileIndex(0);
     setCurrentStep(1);
     setIsFilePanelOpen(false);
-    setShowAdvanced(false);
+    setShowAdvanced(!hideAdvanced);
     setIngestionJobId(null);
     setValidationErrors({});
-  }, []);
-
-  const toggleAdvanced = useCallback(() => {
-    setShowAdvanced((prev) => {
-      if (prev) {
-        // Hiding advanced: reset chunk settings and close panel
-        setChunkSize(0);
-        setChunkOverlap(0);
-        setSeparator("");
-        setIsFilePanelOpen(false);
-      } else {
-        // Showing advanced: apply defaults
-        setChunkSize(DEFAULT_CHUNK_SIZE);
-        setChunkOverlap(DEFAULT_CHUNK_OVERLAP);
-        setSeparator(DEFAULT_SEPARATOR);
-      }
-      return !prev;
-    });
-  }, []);
+    hasAppliedBackendDefaults.current = false;
+  }, [hideAdvanced]);
 
   // Generate chunk previews via backend API
   const generateChunkPreviews = useCallback(async () => {
@@ -254,7 +371,7 @@ export function useKnowledgeBaseForm({
     } catch (error: unknown) {
       const err = error as AxiosError<{ detail?: string }>;
       setErrorData({
-        title: "Failed to generate chunk preview",
+        title: t("knowledge.errorChunkPreview"),
         list: [err?.response?.data?.detail || err?.message || "Unknown error"],
       });
       setChunkPreviews([]);
@@ -274,34 +391,62 @@ export function useKnowledgeBaseForm({
     const errors: Record<string, string> = {};
     const trimmedName = sourceName.trim().replace(/\s+/g, "_");
     if (!trimmedName) {
-      errors.sourceName = "Name is required";
+      errors.sourceName = t("knowledge.validationNameRequired");
     } else if (trimmedName.length < 3 || trimmedName.length > 512) {
-      errors.sourceName = "Name must be between 3 and 512 characters";
+      errors.sourceName = t("knowledge.validationNameLength");
     } else if (!KB_NAME_REGEX.test(trimmedName)) {
-      errors.sourceName =
-        "Name must only contain [a-zA-Z0-9._-] and start/end with [a-zA-Z0-9]";
+      errors.sourceName = t("knowledge.validationNameFormat");
     } else if (
       !isAddSourcesMode &&
       existingKnowledgeBaseNames?.some(
         (name) => name.toLowerCase() === trimmedName.toLowerCase(),
       )
     ) {
-      errors.sourceName = "A knowledge base with this name already exists";
+      errors.sourceName = t("knowledge.validationNameDuplicate");
     }
     if (!isAddSourcesMode && selectedEmbeddingModel.length === 0) {
-      errors.embeddingModel = "Embedding model is required";
+      errors.embeddingModel = t("knowledge.validationEmbeddingRequired");
+    }
+    if (!isAddSourcesMode) {
+      const selectedProvider = getDBProviderOption(backendType);
+      if (!isDBProviderConfigured(backendType, globalVariables)) {
+        errors.backend = `${selectedProvider.label} must be configured in DB Providers settings before it can be used.`;
+      } else {
+        const backendErrors = validateBackendConfig(backendType, backendConfig);
+        if (backendErrors) {
+          errors.backend = backendErrors;
+        }
+      }
     }
     const totalBytes = files.reduce((acc, file) => acc + file.size, 0);
     if (totalBytes > MAX_TOTAL_FILE_SIZE) {
-      errors.files = "Total file size exceeds the 1 GB limit";
+      errors.files = t("knowledge.validationFileSizeLimit");
+    }
+    const runMetadataValidation = validateMetadataPairs(metadataPairs);
+    if (!runMetadataValidation.ok) {
+      errors.metadata =
+        "Fix metadata fields before continuing. Keys must be 1-32 lowercase letters, digits, or underscores and must be unique.";
+    }
+    for (const [fileName, pairs] of Object.entries(perFileMetadata)) {
+      const perFileValidation = validateMetadataPairs(pairs);
+      if (!perFileValidation.ok) {
+        errors.metadata = `Fix metadata fields for "${fileName}" before continuing.`;
+        break;
+      }
     }
     return errors;
   }, [
+    t,
     sourceName,
     isAddSourcesMode,
     selectedEmbeddingModel,
+    backendType,
+    backendConfig,
+    globalVariables,
     files,
     existingKnowledgeBaseNames,
+    metadataPairs,
+    perFileMetadata,
   ]);
 
   const clearValidationErrors = useCallback(() => {
@@ -326,17 +471,22 @@ export function useKnowledgeBaseForm({
           name: kbName,
           embedding_provider: selectedModel.provider || "Unknown",
           embedding_model: selectedModel.id || selectedModel.name,
+          model_selection: selectedModel,
           column_config: columnConfig,
+          backend_type: toAPIBackendType(backendType),
+          backend_config: backendConfig,
         });
       }
 
-      // Simple mode: only name + embedding model, no files or chunk params
+      // Simple mode: only name + embedding model, no files or chunk params.
       if (!showAdvanced && !isAddSourcesMode) {
         const callbackData: KnowledgeBaseFormData = {
           sourceName,
           files: [],
           embeddingModel: selectedEmbeddingModel,
           columnConfig,
+          backendType,
+          backendConfig,
         };
 
         setSuccessData({
@@ -361,6 +511,31 @@ export function useKnowledgeBaseForm({
         formData.append("separator", separator);
         formData.append("column_config", JSON.stringify(columnConfig));
 
+        // User-supplied metadata is sent as JSON strings so the same
+        // multipart payload carries run-level + per-file overrides.
+        // Empty strings are sent through as-is and the API treats them as
+        // ``no metadata supplied``.
+        const runMetadata = metadataPairsToFormValue(metadataPairs);
+        if (runMetadata) {
+          formData.append("metadata", runMetadata);
+        }
+        const perFileMetadataPayload: Record<
+          string,
+          Record<string, string>
+        > = {};
+        for (const [fileName, pairs] of Object.entries(perFileMetadata)) {
+          const encoded = metadataPairsToFormValue(pairs);
+          if (encoded) {
+            perFileMetadataPayload[fileName] = JSON.parse(encoded);
+          }
+        }
+        if (Object.keys(perFileMetadataPayload).length > 0) {
+          formData.append(
+            "per_file_metadata",
+            JSON.stringify(perFileMetadataPayload),
+          );
+        }
+
         // Don't await — fire and forget. Polling will track status.
         api
           .post(`${getURL("KNOWLEDGE_BASES")}/${kbName}/ingest`, formData, {
@@ -369,7 +544,7 @@ export function useKnowledgeBaseForm({
           .catch((ingestError: unknown) => {
             const err = ingestError as AxiosError<{ detail?: string }>;
             setErrorData({
-              title: `Failed to start ingestion for "${sourceName}"`,
+              title: t("knowledge.errorIngestion", { name: sourceName }),
               list: [
                 err?.response?.data?.detail || err?.message || "Unknown error",
               ],
@@ -385,15 +560,17 @@ export function useKnowledgeBaseForm({
         chunkOverlap,
         separator,
         columnConfig,
+        backendType,
+        backendConfig,
       };
 
       if (isAddSourcesMode) {
         setSuccessData({
-          title: `Sources added to "${sourceName}"`,
+          title: t("knowledge.successSourcesAdded", { name: sourceName }),
         });
       } else {
         setSuccessData({
-          title: `Knowledge base "${sourceName}" created`,
+          title: t("knowledge.baseCreated", { name: sourceName }),
         });
       }
 
@@ -405,28 +582,50 @@ export function useKnowledgeBaseForm({
       const errorMessage =
         err?.response?.data?.detail ||
         err?.message ||
-        "Failed to create knowledge base";
+        t("knowledge.errorCreateFailed");
       setErrorData({ title: errorMessage });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = e.target.files;
+  const processSelectedFiles = (selectedFiles: FileList | null) => {
     if (selectedFiles && selectedFiles.length > 0) {
-      setFiles((prev) => [...prev, ...Array.from(selectedFiles)]);
-      setIsFilePanelOpen(true);
+      const allFiles = Array.from(selectedFiles);
+      const filteredFiles: File[] = [];
+      const excludedFiles: string[] = [];
+
+      for (const file of allFiles) {
+        const extension = file.name.split(".").pop()?.toLowerCase();
+        if (extension && KB_INGEST_EXTENSIONS.includes(extension)) {
+          filteredFiles.push(file);
+        } else {
+          excludedFiles.push(file.name);
+        }
+      }
+
+      if (filteredFiles.length > 0) {
+        setFiles((prev) => [...prev, ...filteredFiles]);
+        setIsFilePanelOpen(true);
+      }
+
+      if (excludedFiles.length > 0) {
+        setErrorData({
+          title:
+            "Some files were skipped. Only supported file types were uploaded. Excluded files:",
+          list: excludedFiles,
+        });
+      }
     }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    processSelectedFiles(e.target.files);
     e.target.value = "";
   };
 
   const handleFolderSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = e.target.files;
-    if (selectedFiles && selectedFiles.length > 0) {
-      setFiles((prev) => [...prev, ...Array.from(selectedFiles)]);
-      setIsFilePanelOpen(true);
-    }
+    processSelectedFiles(e.target.files);
     e.target.value = "";
   };
 
@@ -476,6 +675,12 @@ export function useKnowledgeBaseForm({
     selectedEmbeddingModel,
     setSelectedEmbeddingModel,
     embeddingModelOptions,
+    backendType,
+    setBackendType,
+    backendConfig,
+    setBackendConfig,
+    handleBackendProviderChange,
+    globalVariables,
 
     // Validation
     validationErrors,
@@ -483,13 +688,18 @@ export function useKnowledgeBaseForm({
 
     // UI state
     showAdvanced,
-    toggleAdvanced,
     isFilePanelOpen,
     isSubmitting,
 
     // Column config
     columnConfig,
     setColumnConfig,
+
+    // User metadata
+    metadataPairs,
+    setMetadataPairs,
+    perFileMetadata,
+    setPerFileMetadata,
 
     // Preview
     chunkPreviews,

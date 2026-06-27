@@ -2,6 +2,8 @@ import { useIsFetching } from "@tanstack/react-query";
 import type { NewValueParams, SelectionChangedEvent } from "ag-grid-community";
 import cloneDeep from "lodash/cloneDeep";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { removeMessages } from "@/components/core/playgroundComponent/chat-view/utils/message-utils";
 import Loading from "@/components/ui/loading";
 import {
   useDeleteMessages,
@@ -21,6 +23,7 @@ export default function SessionView({
   session?: string;
   id?: string;
 }) {
+  const { t } = useTranslation();
   const messages = useMessagesStore((state) => state.messages);
   const setMessages = useMessagesStore((state) => state.setMessages);
   const setErrorData = useAlertStore((state) => state.setErrorData);
@@ -32,7 +35,7 @@ export default function SessionView({
 
   // Fetch messages for the specific session
   const messageQueryParams = useMemo(() => {
-    const params: any = {};
+    const params: Record<string, string> = {};
     if (session) {
       params.session_id = session;
     }
@@ -53,17 +56,28 @@ export default function SessionView({
   // Update messages store when data is fetched
   useEffect(() => {
     if (queryData && typeof queryData === "object" && "rows" in queryData) {
-      const rowsData = queryData.rows as { data?: any[] } | undefined;
+      const rowsData = queryData.rows as { data?: unknown[] } | undefined;
       if (rowsData && typeof rowsData === "object" && "data" in rowsData) {
         const fetchedMessages = rowsData.data || [];
-        if (fetchedMessages.length > 0) {
-          setMessages(fetchedMessages);
-        }
+        setMessages(fetchedMessages);
       }
     }
   }, [queryData, setMessages]);
 
-  const columns = extractColumnsFromRows(messages, "intersection");
+  const columnHeaderMap: Record<string, string> = {
+    timestamp: t("messages.column.timestamp"),
+    text: t("messages.column.text"),
+    sender: t("messages.column.sender"),
+    sender_name: t("messages.column.senderName"),
+    session_id: t("messages.column.sessionId"),
+    files: t("messages.column.files"),
+  };
+
+  const columns = extractColumnsFromRows(messages, "intersection").map((col) =>
+    col.field && columnHeaderMap[col.field]
+      ? { ...col, headerName: columnHeaderMap[col.field] }
+      : col,
+  );
   const isFetchingCount = useIsFetching({
     queryKey: ["useGetMessagesQuery"],
     exact: false,
@@ -73,21 +87,26 @@ export default function SessionView({
   const { mutate: deleteMessages } = useDeleteMessages({
     onSuccess: () => {
       deleteMessagesStore(selectedRows);
+      if (session && id) {
+        removeMessages(selectedRows, session, id);
+      }
       setSelectedRows([]);
       setSuccessData({
-        title: "Messages deleted successfully.",
+        title: t("success.messagesDeleted"),
       });
     },
     onError: () => {
       setErrorData({
-        title: "Error deleting messages.",
+        title: t("errors.deletingMessages"),
       });
     },
   });
 
   const { mutate: updateMessageMutation } = useUpdateMessage();
 
-  function handleUpdateMessage(event: NewValueParams<any, string>) {
+  function handleUpdateMessage(
+    event: NewValueParams<Record<string, unknown>, string>,
+  ) {
     const newValue = event.newValue;
     const field = event.column.getColId();
     const row = cloneDeep(event.data);
@@ -102,12 +121,12 @@ export default function SessionView({
           updateMessage(data);
           // Set success message
           setSuccessData({
-            title: "Messages updated successfully.",
+            title: t("success.messagesUpdated"),
           });
         },
         onError: () => {
           setErrorData({
-            title: "Error updating messages.",
+            title: t("errors.updatingMessages"),
           });
           event.data[field] = event.oldValue;
           event.api.refreshCells();
@@ -146,7 +165,7 @@ export default function SessionView({
       onDelete={playgroundPage ? undefined : handleRemoveMessages}
       readOnlyEdit
       editable={editable}
-      overlayNoRowsTemplate="No data available"
+      overlayNoRowsTemplate={t("table.noRowsToShow")}
       onSelectionChanged={(event: SelectionChangedEvent) => {
         setSelectedRows(event.api.getSelectedRows().map((row) => row.id));
       }}
