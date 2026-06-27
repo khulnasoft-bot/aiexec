@@ -7,7 +7,8 @@ const startedStars = Number(window.localStorage.getItem("githubStars")) ?? 0;
 export const useDarkStore = create<DarkStoreType>((set, get) => ({
   dark: (() => {
     const stored = window.localStorage.getItem("isDark");
-    return stored !== null ? JSON.parse(stored) : false;
+    if (stored !== null) return JSON.parse(stored);
+    return window.matchMedia("(prefers-color-scheme: dark)").matches;
   })(),
   stars: startedStars,
   version: "",
@@ -37,7 +38,7 @@ export const useDarkStore = create<DarkStoreType>((set, get) => ({
 
     // if lastUpdated is null or the difference is greater than 2 hours
     if (lastUpdated === null || diff > 7200000) {
-      getRepoStars("khulnasoft-bot", "primeagent").then((res) => {
+      getRepoStars("khulnasoft", "primeagent").then((res) => {
         window.localStorage.setItem("githubStars", res?.toString() ?? "0");
         window.localStorage.setItem(
           "githubStarsLastUpdated",
