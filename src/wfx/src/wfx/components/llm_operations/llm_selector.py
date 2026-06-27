@@ -11,6 +11,7 @@ from wfx.custom.custom_component.component import Component
 from wfx.inputs.inputs import BoolInput, DropdownInput, HandleInput, IntInput, MultilineInput
 from wfx.schema.data import Data
 from wfx.schema.message import Message
+from wfx.schema.token_usage import accumulate_usage, extract_usage_from_message
 from wfx.template.field.base import Output
 
 
@@ -330,8 +331,10 @@ If no model seems suitable, pick the first model in the list (index 0) as a fall
                     spec_dict = self._get_model_specs_dict(primeagent_model_name)
 
                 model_specs_for_judge.append({"index": i, "primeagent_name": primeagent_model_name, "specs": spec_dict})
-                name = spec_dict.get("name", "N/A")
-                self.log(f"Prepared specs for Primeagent model {i} ('{primeagent_model_name}'): {name}")
+                self.log(
+                    f"Prepared specs for Primeagent model {i}"
+                    f" ('{primeagent_model_name}'): {spec_dict.get('name', 'N/A')}"
+                )
 
             estimated_tokens = len(self.input_value.split()) * 1.3
             self.log(f"Estimated input tokens: {int(estimated_tokens)}")
@@ -357,6 +360,7 @@ Return ONLY the index number:"""
             self.status = "Judge LLM analyzing options..."
 
             response = await self.judge_llm.ainvoke([system_message, user_message])
+            self._token_usage = accumulate_usage(self._token_usage, extract_usage_from_message(response))
             selected_index, chosen_model_instance = self._parse_judge_response(response.content.strip())
             self._selected_model_name = get_model_name(chosen_model_instance)
             if self._selected_model_name:
@@ -392,6 +396,9 @@ Return ONLY the index number:"""
             raw_result = get_chat_result(
                 runnable=chosen_model_instance,
                 input_value=input_message_obj,
+                token_usage_callback=lambda msg: setattr(
+                    self, "_token_usage", accumulate_usage(self._token_usage, extract_usage_from_message(msg))
+                ),
             )
             result = Message(text=str(raw_result)) if not isinstance(raw_result, Message) else raw_result
 
@@ -425,6 +432,9 @@ Return ONLY the index number:"""
                 raw_fallback_result = get_chat_result(
                     runnable=chosen_model_instance,
                     input_value=input_message_obj,
+                    token_usage_callback=lambda msg: setattr(
+                        self, "_token_usage", accumulate_usage(self._token_usage, extract_usage_from_message(msg))
+                    ),
                 )
                 if not isinstance(raw_fallback_result, Message):
                     successful_result = Message(text=str(raw_fallback_result))

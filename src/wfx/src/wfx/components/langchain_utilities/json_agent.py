@@ -3,7 +3,7 @@ import tempfile
 from pathlib import Path
 
 import yaml
-from langchain.agents import AgentExecutor
+from langchain_classic.agents import AgentExecutor
 
 from wfx.base.agents.agent import LCAgentComponent
 from wfx.base.data.storage_utils import read_file_bytes

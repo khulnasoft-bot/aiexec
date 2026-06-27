@@ -2,8 +2,7 @@ import json
 from collections.abc import Sequence
 from typing import Any
 
-import requests
-from langchain.agents import Tool
+from langchain_classic.agents import Tool
 from langchain_core.tools import StructuredTool
 from pydantic.v1 import Field, create_model
 
@@ -12,6 +11,7 @@ from wfx.inputs.inputs import DropdownInput, IntInput, MessageTextInput, Multise
 from wfx.io import Output
 from wfx.log.logger import logger
 from wfx.schema.dotdict import dotdict
+from wfx.utils.ssrf_requests import ssrf_safe_get
 
 
 class SearXNGToolComponent(LCToolComponent):
@@ -62,7 +62,8 @@ class SearXNGToolComponent(LCToolComponent):
         try:
             url = f"{field_value}/config"
 
-            response = requests.get(url=url, headers=self.search_headers.copy(), timeout=10)
+            # SSRF Protection: validate the URL (and any redirects) before fetching.
+            response = ssrf_safe_get(url, headers=self.search_headers.copy(), timeout=10)
             data = None
             if response.headers.get("Content-Encoding") == "zstd":
                 data = json.loads(response.content)
@@ -97,8 +98,9 @@ class SearXNGToolComponent(LCToolComponent):
                 try:
                     url = f"{SearxSearch._url}/"
                     headers = SearxSearch._headers.copy()
-                    response = requests.get(
-                        url=url,
+                    # SSRF Protection: validate the URL (and any redirects) before fetching.
+                    response = ssrf_safe_get(
+                        url,
                         headers=headers,
                         params={
                             "q": query,

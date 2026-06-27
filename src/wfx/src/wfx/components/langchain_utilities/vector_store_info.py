@@ -1,4 +1,4 @@
-from langchain.agents.agent_toolkits.vectorstore.toolkit import VectorStoreInfo
+from langchain_classic.agents.agent_toolkits.vectorstore.toolkit import VectorStoreInfo
 
 from wfx.custom.custom_component.component import Component
 from wfx.inputs.inputs import HandleInput, MessageTextInput, MultilineInput

@@ -4,6 +4,7 @@ from pathlib import Path
 from langchain_chroma import Chroma
 from typing_extensions import override
 
+from wfx.base.vectorstores.chroma_security import chroma_langchain_collection_kwargs
 from wfx.base.vectorstores.model import LCVectorStoreComponent, check_cached_vector_store
 from wfx.base.vectorstores.utils import chroma_collection_to_data
 from wfx.inputs.inputs import MultilineInput
@@ -81,7 +82,7 @@ class LocalDBComponent(LCVectorStoreComponent):
         HandleInput(
             name="ingest_data",
             display_name="Ingest Data",
-            input_types=["Data", "DataFrame"],
+            input_types=["Data", "JSON", "DataFrame", "Table"],
             is_list=True,
             info="Data to store. It will be embedded and indexed for semantic search.",
             show=True,
@@ -108,7 +109,7 @@ class LocalDBComponent(LCVectorStoreComponent):
         ),
     ]
     outputs = [
-        Output(display_name="DataFrame", name="dataframe", method="perform_search"),
+        Output(display_name="Table", name="dataframe", method="perform_search"),
     ]
 
     def get_vector_store_directory(self, base_dir: str | Path) -> Path:
@@ -226,6 +227,7 @@ class LocalDBComponent(LCVectorStoreComponent):
             client=None,
             embedding_function=self.embedding,
             collection_name=self.collection_name,
+            **chroma_langchain_collection_kwargs(),
         )
 
         self._add_documents_to_vector_store(chroma)

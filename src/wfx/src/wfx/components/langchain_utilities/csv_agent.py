@@ -3,8 +3,9 @@ import tempfile
 from pathlib import Path
 
 from wfx.base.agents.agent import LCAgentComponent
+from wfx.base.agents.utils import resolve_agent_verbose
 from wfx.base.data.storage_utils import read_file_bytes
-from wfx.base.models.unified_models import get_language_model_options, get_llm, update_model_options_in_build_config
+from wfx.base.models.unified_models import get_language_model_options, get_llm, handle_model_input_update
 from wfx.base.models.watsonx_constants import IBM_WATSONX_URLS
 from wfx.field_typing import AgentExecutor
 from wfx.inputs.inputs import (
@@ -40,7 +41,7 @@ class CSVAgentComponent(LCAgentComponent):
         SecretStrInput(
             name="api_key",
             display_name="API Key",
-            info="Model Provider API key",
+            info="Overrides global provider settings. Leave blank to use your pre-configured API Key.",
             real_time_refresh=True,
             advanced=True,
         ),
@@ -124,33 +125,14 @@ class CSVAgentComponent(LCAgentComponent):
 
     def update_build_config(self, build_config: dict, field_value: str, field_name: str | None = None) -> dict:
         """Dynamically update build config with user-filtered model options (tool-calling capable models)."""
-
-        def get_tool_calling_model_options(user_id=None):
-            return get_language_model_options(user_id=user_id, tool_calling=True)
-
-        build_config = update_model_options_in_build_config(
-            component=self,
-            build_config=dict(build_config),
+        return handle_model_input_update(
+            self,
+            dict(build_config),
+            field_value,
+            field_name,
             cache_key_prefix="language_model_options_tool_calling",
-            get_options_func=get_tool_calling_model_options,
-            field_name=field_name,
-            field_value=field_value,
+            get_options_func=lambda user_id=None: get_language_model_options(user_id=user_id, tool_calling=True),
         )
-
-        # Show/hide watsonx fields based on selected model
-        current_model_value = field_value if field_name == "model" else build_config.get("model", {}).get("value")
-        if isinstance(current_model_value, list) and len(current_model_value) > 0:
-            selected_model = current_model_value[0]
-            provider = selected_model.get("provider", "")
-            is_watsonx = provider == "IBM WatsonX"
-            if "base_url_ibm_watsonx" in build_config:
-                build_config["base_url_ibm_watsonx"]["show"] = is_watsonx
-                build_config["base_url_ibm_watsonx"]["required"] = is_watsonx
-            if "project_id" in build_config:
-                build_config["project_id"]["show"] = is_watsonx
-                build_config["project_id"]["required"] = is_watsonx
-
-        return build_config
 
     def build_agent_response(self) -> Message:
         """Build and execute the CSV agent, returning the response."""
@@ -167,7 +149,10 @@ class CSVAgentComponent(LCAgentComponent):
             allow_dangerous = getattr(self, "allow_dangerous_code", False) or False
 
             agent_kwargs = {
-                "verbose": self.verbose,
+                # Gate LangChain's stdout chain markers on LANGCHAIN_VERBOSE (off by
+                # default) instead of the always-True component input. See
+                # resolve_agent_verbose().
+                "verbose": resolve_agent_verbose(),
                 "allow_dangerous_code": allow_dangerous,
             }
 
@@ -204,7 +189,10 @@ class CSVAgentComponent(LCAgentComponent):
         allow_dangerous = getattr(self, "allow_dangerous_code", False) or False
 
         agent_kwargs = {
-            "verbose": self.verbose,
+            # Gate LangChain's stdout chain markers on LANGCHAIN_VERBOSE (off by
+            # default) instead of the always-True component input. See
+            # resolve_agent_verbose().
+            "verbose": resolve_agent_verbose(),
             "allow_dangerous_code": allow_dangerous,
         }
 

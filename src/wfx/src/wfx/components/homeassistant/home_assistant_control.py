@@ -1,14 +1,16 @@
 import json
 from typing import Any
 
-import requests
-from langchain.tools import StructuredTool
+import httpx
+from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
 from wfx.base.langchain_utilities.model import LCToolComponent
 from wfx.field_typing import Tool
 from wfx.inputs.inputs import SecretStrInput, StrInput
 from wfx.schema.data import Data
+from wfx.utils.ssrf_httpx import ssrf_safe_httpx_post
+from wfx.utils.ssrf_protection import SSRFProtectionError
 
 
 class HomeAssistantControl(LCToolComponent):
@@ -132,11 +134,13 @@ class HomeAssistantControl(LCToolComponent):
             }
             payload = {"entity_id": entity_id}
 
-            response = requests.post(url, headers=headers, json=payload, timeout=10)
+            response = ssrf_safe_httpx_post(url, headers=headers, json=payload, timeout=10)
             response.raise_for_status()
 
             return response.json()  # HA response JSON on success
-        except requests.exceptions.RequestException as e:
+        except SSRFProtectionError as e:
+            return f"Error: SSRF Protection: {e}"
+        except httpx.HTTPError as e:
             return f"Error: Failed to call service. {e}"
         except Exception as e:  # noqa: BLE001
             return f"An unexpected error occurred: {e}"
