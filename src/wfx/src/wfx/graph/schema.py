@@ -3,6 +3,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_serializer, model_validator
 
+from wfx.schema.properties import Usage
 from wfx.schema.schema import OutputValue, StreamURL
 from wfx.serialization.serialization import serialize
 from wfx.utils.schemas import ChatOutputResponse, ContainsEnumMeta
@@ -19,6 +20,7 @@ class ResultData(BaseModel):
     component_display_name: str | None = None
     component_id: str | None = None
     used_frozen_result: bool | None = False
+    token_usage: Usage | None = None
 
     @field_serializer("results")
     def serialize_results(self, value):
@@ -37,6 +39,9 @@ class ResultData(BaseModel):
 
                 # ! Temporary fix
                 if message is None:
+                    continue
+
+                if not isinstance(message, dict):
                     continue
 
                 if "stream_url" in message and "type" in message:
