@@ -1,7 +1,8 @@
 import { useMemo } from "react";
-import type { NodeDataType } from "@/types/flow";
-import useFlowStore from "@/stores/flowStore";
+import { useTranslation } from "react-i18next";
 import SwitchOutputView from "@/CustomNodes/GenericNode/components/outputModal/components/switchOutputView";
+import useFlowStore from "@/stores/flowStore";
+import type { NodeDataType } from "@/types/flow";
 import { getGroupOutputNodeId } from "@/utils/reactflowUtils";
 
 interface InspectionPanelOutputsProps {
@@ -11,6 +12,7 @@ interface InspectionPanelOutputsProps {
 export default function InspectionPanelOutputs({
   data,
 }: InspectionPanelOutputsProps) {
+  const { t } = useTranslation();
   const flowPool = useFlowStore((state) => state.flowPool);
 
   // Get all outputs from the node
@@ -54,7 +56,7 @@ export default function InspectionPanelOutputs({
   if (!firstOutputWithData) {
     return (
       <div className="flex items-center justify-center p-8 text-sm text-muted-foreground">
-        No output data available. Please build the component first.
+        {t("inspectionPanel.noOutputData")}
       </div>
     );
   }
