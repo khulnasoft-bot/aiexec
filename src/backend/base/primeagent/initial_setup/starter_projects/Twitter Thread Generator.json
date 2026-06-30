@@ -115,7 +115,7 @@
             "icon": "MessagesSquare",
             "legacy": false,
             "metadata": {
-              "code_hash": "7a26c54d89ed",
+              "code_hash": "24fe7ac00755",
               "dependencies": {
                 "dependencies": [
                   {
@@ -396,7 +396,7 @@
             "icon": "MessagesSquare",
             "legacy": false,
             "metadata": {
-              "code_hash": "84009527d08c",
+              "code_hash": "277f5a563e43",
               "dependencies": {
                 "dependencies": [
                   {
@@ -405,7 +405,7 @@
                   },
                   {
                     "name": "fastapi",
-                    "version": "0.137.2"
+                    "version": "0.138.1"
                   },
                   {
                     "name": "wfx",
@@ -726,7 +726,7 @@
             "icon": "prompts",
             "legacy": false,
             "metadata": {
-              "code_hash": "3d3fd7b8a36f",
+              "code_hash": "88cc6b03a90e",
               "dependencies": {
                 "dependencies": [
                   {

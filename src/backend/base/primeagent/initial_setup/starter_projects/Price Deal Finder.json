@@ -137,7 +137,7 @@
             "legacy": false,
             "lf_version": "1.3.2",
             "metadata": {
-              "code_hash": "7a26c54d89ed",
+              "code_hash": "24fe7ac00755",
               "dependencies": {
                 "dependencies": [
                   {
@@ -415,7 +415,7 @@
             "legacy": false,
             "lf_version": "1.3.2",
             "metadata": {
-              "code_hash": "84009527d08c",
+              "code_hash": "277f5a563e43",
               "dependencies": {
                 "dependencies": [
                   {
@@ -424,7 +424,7 @@
                   },
                   {
                     "name": "fastapi",
-                    "version": "0.137.2"
+                    "version": "0.138.1"
                   },
                   {
                     "name": "wfx",
@@ -708,7 +708,7 @@
             "legacy": false,
             "lf_version": "1.3.2",
             "metadata": {
-              "code_hash": "5638a305a99c",
+              "code_hash": "c6ae62e1bfca",
               "dependencies": {
                 "dependencies": [
                   {
@@ -1123,7 +1123,7 @@
             "legacy": false,
             "lf_version": "1.3.2",
             "metadata": {
-              "code_hash": "3737ac221d7d",
+              "code_hash": "8d38ceb60d2a",
               "dependencies": {
                 "dependencies": [
                   {
@@ -1611,12 +1611,12 @@
             "last_updated": "2025-12-11T21:41:48.407Z",
             "legacy": false,
             "metadata": {
-              "code_hash": "d08c17dbf863",
+              "code_hash": "a06e0b9e90bd",
               "dependencies": {
                 "dependencies": [
                   {
                     "name": "langchain",
-                    "version": "1.3.10"
+                    "version": "1.3.11"
                   },
                   {
                     "name": "wfx",

@@ -106,7 +106,7 @@
             "legacy": false,
             "lf_version": "1.1.5",
             "metadata": {
-              "code_hash": "4caa0e09ea85",
+              "code_hash": "f253c74ebded",
               "dependencies": {
                 "dependencies": [
                   {
@@ -115,7 +115,7 @@
                   },
                   {
                     "name": "scrapegraph_py",
-                    "version": "2.1.0"
+                    "version": "1.47.0"
                   }
                 ],
                 "total_dependencies": 2
@@ -291,7 +291,7 @@
             "legacy": false,
             "lf_version": "1.1.5",
             "metadata": {
-              "code_hash": "7a26c54d89ed",
+              "code_hash": "24fe7ac00755",
               "dependencies": {
                 "dependencies": [
                   {
@@ -566,7 +566,7 @@
             "legacy": false,
             "lf_version": "1.1.5",
             "metadata": {
-              "code_hash": "84009527d08c",
+              "code_hash": "277f5a563e43",
               "dependencies": {
                 "dependencies": [
                   {
@@ -575,7 +575,7 @@
                   },
                   {
                     "name": "fastapi",
-                    "version": "0.137.2"
+                    "version": "0.138.1"
                   },
                   {
                     "name": "wfx",
@@ -942,12 +942,12 @@
             "last_updated": "2025-12-11T21:41:48.407Z",
             "legacy": false,
             "metadata": {
-              "code_hash": "d08c17dbf863",
+              "code_hash": "a06e0b9e90bd",
               "dependencies": {
                 "dependencies": [
                   {
                     "name": "langchain",
-                    "version": "1.3.10"
+                    "version": "1.3.11"
                   },
                   {
                     "name": "wfx",
