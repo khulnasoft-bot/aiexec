@@ -22,6 +22,14 @@ on:
         description: "Name of the WFX package artifact"
         required: false
         type: string
+      sdk-artifact-name:
+        description: "Name of the primeagent-sdk package artifact"
+        required: false
+        type: string
+      bundles-artifact-name:
+        description: "Name of the bundles package artifact (contains every src/bundles/*/ wheel)"
+        required: false
+        type: string
       pre_release:
         description: "Whether this is a pre-release build"
         required: false
@@ -36,6 +44,9 @@ jobs:
     outputs:
       base-artifact-name: ${{ steps.set-names.outputs.base-artifact-name }}
       main-artifact-name: ${{ steps.set-names.outputs.main-artifact-name }}
+      wfx-artifact-name: ${{ steps.set-names.outputs.wfx-artifact-name }}
+      sdk-artifact-name: ${{ steps.set-names.outputs.sdk-artifact-name }}
+      bundles-artifact-name: ${{ steps.set-names.outputs.bundles-artifact-name }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -58,8 +69,45 @@ jobs:
           # Base package builds to dist/ but should be in src/backend/base/dist/
           mkdir -p src/backend/base/dist
           mv dist/primeagent_base*.whl src/backend/base/dist/
+      - name: Build WFX package
+        run: |
+          cd src/wfx
+          uv build --wheel --out-dir dist
+      - name: Build SDK package
+        run: |
+          cd src/sdk
+          uv build --wheel --out-dir dist
       - name: Build main package
         run: make build_primeagent args="--wheel"
+      - name: Build bundle wheels
+        id: build-bundles
+        run: |
+          shopt -s nullglob
+          bundles=(src/bundles/*/pyproject.toml)
+          if [ ${#bundles[@]} -eq 0 ]; then
+            echo "No bundles found under src/bundles/*/"
+            echo "bundles-found=0" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          mkdir -p bundles-dist
+          BUNDLES_DIST="$PWD/bundles-dist"
+          for bundle_pyproject in "${bundles[@]}"; do
+            bundle_dir=$(dirname "$bundle_pyproject")
+            echo "Building wheel for $bundle_dir"
+            (cd "$bundle_dir" && uv build --wheel --out-dir "$BUNDLES_DIST")
+          done
+          echo "bundles-found=1" >> $GITHUB_OUTPUT
+          ls -la bundles-dist/
+      - name: Upload wfx artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: adhoc-dist-wfx
+          path: src/wfx/dist
+      - name: Upload SDK artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: adhoc-dist-sdk
+          path: src/sdk/dist
       - name: Upload base artifact
         uses: actions/upload-artifact@v6
         with:
@@ -70,11 +118,24 @@ jobs:
         with:
           name: adhoc-dist-main
           path: dist
+      - name: Upload bundles artifact
+        if: steps.build-bundles.outputs.bundles-found == '1'
+        uses: actions/upload-artifact@v6
+        with:
+          name: adhoc-dist-bundles
+          path: bundles-dist
       - name: Set artifact names
         id: set-names
         run: |
           echo "base-artifact-name=adhoc-dist-base" >> $GITHUB_OUTPUT
           echo "main-artifact-name=adhoc-dist-main" >> $GITHUB_OUTPUT
+          echo "wfx-artifact-name=adhoc-dist-wfx" >> $GITHUB_OUTPUT
+          echo "sdk-artifact-name=adhoc-dist-sdk" >> $GITHUB_OUTPUT
+          if [ "${{ steps.build-bundles.outputs.bundles-found }}" = "1" ]; then
+            echo "bundles-artifact-name=adhoc-dist-bundles" >> $GITHUB_OUTPUT
+          else
+            echo "bundles-artifact-name=" >> $GITHUB_OUTPUT
+          fi
 
   test-installation-stable:
     name: Install & Run - ${{ matrix.os }} ${{ matrix.arch }} ${{ matrix.python-version }}
@@ -94,11 +155,7 @@ jobs:
             arch: amd64
             runner: ubuntu-latest
             python-version: "3.12"
-          # macOS AMD64
-          - os: macos
-            arch: amd64
-            runner: macos-latest-large
-            python-version: "3.10"
+          # macOS AMD64 (Intel) - Python 3.12 only for cost optimization
           - os: macos
             arch: amd64
             runner: macos-latest-large
@@ -121,6 +178,23 @@ jobs:
             arch: amd64
             runner: windows-latest
             python-version: "3.12"
+          # Python 3.13 - graduated from experimental to stable (blocking).
+          # macOS Intel (amd64) is intentionally omitted here: like 3.10/3.12 above
+          # it stays on the costly macos-latest-large runner only at 3.12. Intel
+          # coverage for newer Python continues (non-blocking) in the experimental
+          # 3.14 set below.
+          - os: linux
+            arch: amd64
+            runner: ubuntu-latest
+            python-version: "3.13"
+          - os: macos
+            arch: arm64
+            runner: macos-latest
+            python-version: "3.13"
+          - os: windows
+            arch: amd64
+            runner: windows-latest
+            python-version: "3.13"
 
     steps:
       - name: Determine install method
@@ -161,11 +235,18 @@ jobs:
         shell: bash
 
       # Download artifacts for wheel installation
-      - name: Download WFX package artifact
-        if: steps.install-method.outputs.method == 'wheel' && inputs.wfx-artifact-name != ''
+      - name: Download primeagent-sdk package artifact
+        if: steps.install-method.outputs.method == 'wheel' && (inputs.sdk-artifact-name != '' || needs.build-if-needed.outputs.sdk-artifact-name != '')
         uses: actions/download-artifact@v7
         with:
-          name: ${{ inputs.wfx-artifact-name }}
+          name: ${{ inputs.sdk-artifact-name || needs.build-if-needed.outputs.sdk-artifact-name || 'adhoc-dist-sdk' }}
+          path: ./sdk-dist
+
+      - name: Download WFX package artifact
+        if: steps.install-method.outputs.method == 'wheel' && (inputs.wfx-artifact-name != '' || needs.build-if-needed.outputs.wfx-artifact-name != '')
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ inputs.wfx-artifact-name || needs.build-if-needed.outputs.wfx-artifact-name || 'adhoc-dist-wfx' }}
           path: ./wfx-dist
 
       - name: Download base package artifact
@@ -182,94 +263,81 @@ jobs:
           name: ${{ inputs.main-artifact-name || needs.build-if-needed.outputs.main-artifact-name || 'adhoc-dist-main' }}
           path: ./main-dist
 
+      - name: Download bundles package artifact
+        if: steps.install-method.outputs.method == 'wheel' && (inputs.bundles-artifact-name != '' || needs.build-if-needed.outputs.bundles-artifact-name != '')
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ inputs.bundles-artifact-name || needs.build-if-needed.outputs.bundles-artifact-name }}
+          path: ./bundles-dist
+
       - name: Create fresh virtual environment
         run: |
           uv venv test-env --seed
         shell: bash
 
-      # Wheel installation steps
-      - name: Install WFX package from wheel (Windows)
-        if: steps.install-method.outputs.method == 'wheel' && matrix.os == 'windows' && inputs.wfx-artifact-name != ''
+      - name: Install packages from wheel
+        if: steps.install-method.outputs.method == 'wheel'
         run: |
-          ls -la ./wfx-dist/
-          find ./wfx-dist -name "*.whl" -type f
-          WHEEL_FILE=$(find ./wfx-dist -name "*.whl" -type f | head -1)
-          if [ -n "$WHEEL_FILE" ]; then
-            uv pip install --prerelease=allow --python ./test-env/Scripts/python.exe "$WHEEL_FILE"
-          else
-            echo "No wheel file found in ./wfx-dist/"
-            exit 1
-          fi
-        shell: bash
+          set -eo pipefail
+          shopt -s nullglob
 
-      - name: Install base package from wheel (Windows)
-        if: steps.install-method.outputs.method == 'wheel' && matrix.os == 'windows'
-        run: |
-          ls -la ./base-dist/
-          find ./base-dist -name "*.whl" -type f
-          WHEEL_FILE=$(find ./base-dist -name "*.whl" -type f | head -1)
-          if [ -n "$WHEEL_FILE" ]; then
-            uv pip install --prerelease=allow --python ./test-env/Scripts/python.exe "$WHEEL_FILE"
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            PYTHON=./test-env/Scripts/python.exe
           else
-            echo "No wheel file found in ./base-dist/"
-            exit 1
+            PYTHON=./test-env/bin/python
           fi
-        shell: bash
 
-      - name: Install main package from wheel (Windows)
-        if: steps.install-method.outputs.method == 'wheel' && matrix.os == 'windows'
-        run: |
-          ls -la ./main-dist/
-          find ./main-dist -name "*.whl" -type f
-          WHEEL_FILE=$(find ./main-dist -name "*.whl" -type f | head -1)
-          if [ -n "$WHEEL_FILE" ]; then
-            uv pip install --prerelease=allow --python ./test-env/Scripts/python.exe "$WHEEL_FILE"
-          else
-            echo "No wheel file found in ./main-dist/"
-            exit 1
-          fi
-        shell: bash
+          refresh_find_links() {
+            FIND_LINKS=()
+            for wheel_dir in ./sdk-dist ./wfx-dist ./base-dist ./bundles-dist; do
+              if [ -d "$wheel_dir" ]; then
+                FIND_LINKS+=(--find-links "$wheel_dir")
+              fi
+            done
+          }
 
-      - name: Install WFX package from wheel (Unix)
-        if: steps.install-method.outputs.method == 'wheel' && matrix.os != 'windows' && inputs.wfx-artifact-name != ''
-        run: |
-          ls -la ./wfx-dist/
-          find ./wfx-dist -name "*.whl" -type f
-          WHEEL_FILE=$(find ./wfx-dist -name "*.whl" -type f | head -1)
-          if [ -n "$WHEEL_FILE" ]; then
-            uv pip install --prerelease=allow --python ./test-env/bin/python "$WHEEL_FILE"
-          else
-            echo "No wheel file found in ./wfx-dist/"
-            exit 1
-          fi
-        shell: bash
+          install_wheels() {
+            label="$1"
+            shift
+            if [ "$#" -eq 0 ]; then
+              echo "No $label wheel found"
+              exit 1
+            fi
+            printf 'Installing %s wheel(s):\n' "$label"
+            printf '%s\n' "$@"
+            refresh_find_links
+            # Use `if-necessary-or-explicit` (not `allow`): nightly primeagent* wheels
+            # are .dev pre-releases so we need to allow them explicitly, but `allow`
+            # leaks to transitive deps and resolves pre-release pydantic alphas
+            # (e.g. 2.14.0a1) which break langchain-core's module-level
+            # `RunnablePassthrough()` call at import time.
+            uv pip install --prerelease=if-necessary-or-explicit --python "$PYTHON" "${FIND_LINKS[@]}" "$@"
+          }
 
-      - name: Install base package from wheel (Unix)
-        if: steps.install-method.outputs.method == 'wheel' && matrix.os != 'windows'
-        run: |
-          ls -la ./base-dist/
-          find ./base-dist -name "*.whl" -type f
-          WHEEL_FILE=$(find ./base-dist -name "*.whl" -type f | head -1)
-          if [ -n "$WHEEL_FILE" ]; then
-            uv pip install --prerelease=allow --python ./test-env/bin/python "$WHEEL_FILE"
-          else
-            echo "No wheel file found in ./base-dist/"
-            exit 1
+          SDK_WHEELS=(./sdk-dist/*.whl)
+          WFX_WHEELS=(./wfx-dist/*.whl)
+          if [ ${#SDK_WHEELS[@]} -gt 0 ] || [ ${#WFX_WHEELS[@]} -gt 0 ]; then
+            install_wheels "SDK/WFX" "${SDK_WHEELS[@]}" "${WFX_WHEELS[@]}"
           fi
-        shell: bash
 
-      - name: Install main package from wheel (Unix)
-        if: steps.install-method.outputs.method == 'wheel' && matrix.os != 'windows'
-        run: |
-          ls -la ./main-dist/
-          find ./main-dist -name "*.whl" -type f
-          WHEEL_FILE=$(find ./main-dist -name "*.whl" -type f | head -1)
-          if [ -n "$WHEEL_FILE" ]; then
-            uv pip install --prerelease=allow --python ./test-env/bin/python "$WHEEL_FILE"
-          else
-            echo "No wheel file found in ./main-dist/"
+          BASE_WHEELS=(./base-dist/*.whl)
+          install_wheels "base" "${BASE_WHEELS[@]}"
+
+          if [ -d ./bundles-dist ]; then
+            BUNDLE_WHEELS=(./bundles-dist/*.whl)
+            install_wheels "bundle" "${BUNDLE_WHEELS[@]}"
+          fi
+
+          MAIN_WHEELS=()
+          while IFS= read -r wheel; do
+            MAIN_WHEELS+=("$wheel")
+          done < <(find ./main-dist -name "primeagent*.whl" ! -name "primeagent_base*.whl" -type f | sort)
+          if [ ${#MAIN_WHEELS[@]} -ne 1 ]; then
+            echo "Expected exactly one primeagent wheel in ./main-dist, found ${#MAIN_WHEELS[@]}"
+            find ./main-dist -name "*.whl" -type f | sort
             exit 1
           fi
+          install_wheels "main" "${MAIN_WHEELS[@]}"
         shell: bash
 
       # PyPI installation steps
@@ -403,23 +471,26 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Python 3.13 - Experimental
+          # Python 3.14 - Experimental (non-blocking) to monitor ecosystem readiness.
+          # macOS Intel (x86_64) is intentionally omitted: primeagent requires
+          # onnxruntime>=1.26 on Python >=3.14 (pyproject.toml), but onnxruntime
+          # dropped macOS x86_64 wheels at 1.24 — so macOS Intel + py3.14 is
+          # permanently unsatisfiable (older onnxruntime that still ships macOS
+          # x86_64 wheels has no cp314 ABI). macOS Intel resolves fine through 3.13;
+          # arm64 has cp314 wheels. Running it would only burn the costly
+          # macos-latest-large runner on a guaranteed, no-signal failure.
           - os: linux
             arch: amd64
             runner: ubuntu-latest
-            python-version: "3.13"
+            python-version: "3.14"
           - os: windows
             arch: amd64
             runner: windows-latest
-            python-version: "3.13"
-          - os: macos
-            arch: amd64
-            runner: macos-latest-large
-            python-version: "3.13"
+            python-version: "3.14"
           - os: macos
             arch: arm64
             runner: macos-latest
-            python-version: "3.13"
+            python-version: "3.14"
 
     steps:
       - name: Determine install method
@@ -460,11 +531,18 @@ jobs:
         shell: bash
 
       # Download artifacts for wheel installation
-      - name: Download WFX package artifact
-        if: steps.install-method.outputs.method == 'wheel' && inputs.wfx-artifact-name != ''
+      - name: Download primeagent-sdk package artifact
+        if: steps.install-method.outputs.method == 'wheel' && (inputs.sdk-artifact-name != '' || needs.build-if-needed.outputs.sdk-artifact-name != '')
         uses: actions/download-artifact@v7
         with:
-          name: ${{ inputs.wfx-artifact-name }}
+          name: ${{ inputs.sdk-artifact-name || needs.build-if-needed.outputs.sdk-artifact-name || 'adhoc-dist-sdk' }}
+          path: ./sdk-dist
+
+      - name: Download WFX package artifact
+        if: steps.install-method.outputs.method == 'wheel' && (inputs.wfx-artifact-name != '' || needs.build-if-needed.outputs.wfx-artifact-name != '')
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ inputs.wfx-artifact-name || needs.build-if-needed.outputs.wfx-artifact-name || 'adhoc-dist-wfx' }}
           path: ./wfx-dist
 
       - name: Download base package artifact
@@ -481,109 +559,114 @@ jobs:
           name: ${{ inputs.main-artifact-name || needs.build-if-needed.outputs.main-artifact-name || 'adhoc-dist-main' }}
           path: ./main-dist
 
+      - name: Download bundles package artifact
+        if: steps.install-method.outputs.method == 'wheel' && (inputs.bundles-artifact-name != '' || needs.build-if-needed.outputs.bundles-artifact-name != '')
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ inputs.bundles-artifact-name || needs.build-if-needed.outputs.bundles-artifact-name }}
+          path: ./bundles-dist
+
       - name: Create fresh virtual environment
         run: |
           uv venv test-env --seed
         shell: bash
 
-      # Wheel installation steps
-      - name: Install WFX package from wheel (Windows)
-        if: steps.install-method.outputs.method == 'wheel' && matrix.os == 'windows' && inputs.wfx-artifact-name != ''
+      - name: Install packages from wheel
+        if: steps.install-method.outputs.method == 'wheel'
         run: |
-          ls -la ./wfx-dist/
-          find ./wfx-dist -name "*.whl" -type f
-          WHEEL_FILE=$(find ./wfx-dist -name "*.whl" -type f | head -1)
-          if [ -n "$WHEEL_FILE" ]; then
-            uv pip install --prerelease=allow --python ./test-env/Scripts/python.exe "$WHEEL_FILE"
-          else
-            echo "No wheel file found in ./wfx-dist/"
-            exit 1
-          fi
-        shell: bash
+          set -eo pipefail
+          shopt -s nullglob
 
-      - name: Install base package from wheel (Windows)
-        if: steps.install-method.outputs.method == 'wheel' && matrix.os == 'windows'
-        run: |
-          ls -la ./base-dist/
-          find ./base-dist -name "*.whl" -type f
-          WHEEL_FILE=$(find ./base-dist -name "*.whl" -type f | head -1)
-          if [ -n "$WHEEL_FILE" ]; then
-            uv pip install --prerelease=allow --python ./test-env/Scripts/python.exe "$WHEEL_FILE"
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            PYTHON=./test-env/Scripts/python.exe
           else
-            echo "No wheel file found in ./base-dist/"
-            exit 1
+            PYTHON=./test-env/bin/python
           fi
-        shell: bash
 
-      - name: Install main package from wheel (Windows)
-        if: steps.install-method.outputs.method == 'wheel' && matrix.os == 'windows'
-        run: |
-          ls -la ./main-dist/
-          find ./main-dist -name "*.whl" -type f
-          WHEEL_FILE=$(find ./main-dist -name "*.whl" -type f | head -1)
-          if [ -n "$WHEEL_FILE" ]; then
-            uv pip install --prerelease=allow --python ./test-env/Scripts/python.exe "$WHEEL_FILE"
-          else
-            echo "No wheel file found in ./main-dist/"
-            exit 1
-          fi
-        shell: bash
+          refresh_find_links() {
+            FIND_LINKS=()
+            for wheel_dir in ./sdk-dist ./wfx-dist ./base-dist ./bundles-dist; do
+              if [ -d "$wheel_dir" ]; then
+                FIND_LINKS+=(--find-links "$wheel_dir")
+              fi
+            done
+          }
 
-      - name: Install WFX package from wheel (Unix)
-        if: steps.install-method.outputs.method == 'wheel' && matrix.os != 'windows' && inputs.wfx-artifact-name != ''
-        run: |
-          ls -la ./wfx-dist/
-          find ./wfx-dist -name "*.whl" -type f
-          WHEEL_FILE=$(find ./wfx-dist -name "*.whl" -type f | head -1)
-          if [ -n "$WHEEL_FILE" ]; then
-            uv pip install --prerelease=allow --python ./test-env/bin/python "$WHEEL_FILE"
-          else
-            echo "No wheel file found in ./wfx-dist/"
-            exit 1
-          fi
-        shell: bash
+          install_wheels() {
+            label="$1"
+            shift
+            if [ "$#" -eq 0 ]; then
+              echo "No $label wheel found"
+              exit 1
+            fi
+            printf 'Installing %s wheel(s):\n' "$label"
+            printf '%s\n' "$@"
+            refresh_find_links
+            # See stable job above for rationale on --prerelease=if-necessary-or-explicit.
+            uv pip install --prerelease=if-necessary-or-explicit --python "$PYTHON" "${FIND_LINKS[@]}" "$@"
+          }
 
-      - name: Install base package from wheel (Unix)
-        if: steps.install-method.outputs.method == 'wheel' && matrix.os != 'windows'
-        run: |
-          ls -la ./base-dist/
-          find ./base-dist -name "*.whl" -type f
-          WHEEL_FILE=$(find ./base-dist -name "*.whl" -type f | head -1)
-          if [ -n "$WHEEL_FILE" ]; then
-            uv pip install --prerelease=allow --python ./test-env/bin/python "$WHEEL_FILE"
-          else
-            echo "No wheel file found in ./base-dist/"
-            exit 1
+          SDK_WHEELS=(./sdk-dist/*.whl)
+          WFX_WHEELS=(./wfx-dist/*.whl)
+          if [ ${#SDK_WHEELS[@]} -gt 0 ] || [ ${#WFX_WHEELS[@]} -gt 0 ]; then
+            install_wheels "SDK/WFX" "${SDK_WHEELS[@]}" "${WFX_WHEELS[@]}"
           fi
-        shell: bash
 
-      - name: Install main package from wheel (Unix)
-        if: steps.install-method.outputs.method == 'wheel' && matrix.os != 'windows'
-        run: |
-          ls -la ./main-dist/
-          find ./main-dist -name "*.whl" -type f
-          WHEEL_FILE=$(find ./main-dist -name "*.whl" -type f | head -1)
-          if [ -n "$WHEEL_FILE" ]; then
-            uv pip install --prerelease=allow --python ./test-env/bin/python "$WHEEL_FILE"
-          else
-            echo "No wheel file found in ./main-dist/"
+          BASE_WHEELS=(./base-dist/*.whl)
+          install_wheels "base" "${BASE_WHEELS[@]}"
+
+          if [ -d ./bundles-dist ]; then
+            BUNDLE_WHEELS=(./bundles-dist/*.whl)
+            install_wheels "bundle" "${BUNDLE_WHEELS[@]}"
+          fi
+
+          MAIN_WHEELS=()
+          while IFS= read -r wheel; do
+            MAIN_WHEELS+=("$wheel")
+          done < <(find ./main-dist -name "primeagent*.whl" ! -name "primeagent_base*.whl" -type f | sort)
+          if [ ${#MAIN_WHEELS[@]} -ne 1 ]; then
+            echo "Expected exactly one primeagent wheel in ./main-dist, found ${#MAIN_WHEELS[@]}"
+            find ./main-dist -name "*.whl" -type f | sort
             exit 1
           fi
+          install_wheels "main" "${MAIN_WHEELS[@]}"
         shell: bash
 
       - name: Force reinstall local wheels to prevent downgrades (Windows)
         if: steps.install-method.outputs.method == 'wheel' && matrix.os == 'windows'
         run: |
+          # Expose the local wheel dirs so dependency re-resolution (the
+          # pre-release path below drops --no-deps) can find the local
+          # pre-release wfx/base wheels. Without these, uv re-resolves
+          # primeagent-base's `wfx>=X.Y.Zrc0` constraint against PyPI only, where
+          # the matching rc/dev wheel is not published yet, and fails with
+          # "No solution found when resolving dependencies".
+          FIND_LINKS=()
+          for wheel_dir in ./sdk-dist ./wfx-dist ./base-dist ./bundles-dist; do
+            if [ -d "$wheel_dir" ]; then
+              FIND_LINKS+=(--find-links "$wheel_dir")
+            fi
+          done
+
           # Reinstall WFX if it was provided
-          if [ -n "${{ inputs.wfx-artifact-name }}" ]; then
+          if [ -n "${{ inputs.wfx-artifact-name || needs.build-if-needed.outputs.wfx-artifact-name }}" ]; then
             WFX_WHEEL=$(find ./wfx-dist -name "*.whl" -type f | head -1)
             if [ -n "$WFX_WHEEL" ]; then
               echo "Force reinstalling WFX: $WFX_WHEEL"
+              INSTALL_WHEELS=("$WFX_WHEEL")
+              SDK_WHEEL=""
+              if [ -d ./sdk-dist ]; then
+                SDK_WHEEL=$(find ./sdk-dist -name "*.whl" -type f | head -1)
+              fi
+              if [ -n "$SDK_WHEEL" ]; then
+                echo "Force reinstalling primeagent-sdk with WFX: $SDK_WHEEL"
+                INSTALL_WHEELS=("$SDK_WHEEL" "$WFX_WHEEL")
+              fi
               NO_DEPS="--no-deps"
               if [ "${{ inputs.pre_release }}" = "true" ]; then
                 NO_DEPS=""
               fi
-              uv pip install --force-reinstall $NO_DEPS --prerelease=allow --python ./test-env/Scripts/python.exe "$WFX_WHEEL"
+              uv pip install --force-reinstall $NO_DEPS --prerelease=if-necessary-or-explicit "${FIND_LINKS[@]}" --python ./test-env/Scripts/python.exe "${INSTALL_WHEELS[@]}"
             fi
           fi
 
@@ -591,27 +674,67 @@ jobs:
           BASE_WHEEL=$(find ./base-dist -name "*.whl" -type f | head -1)
           if [ -n "$BASE_WHEEL" ]; then
             echo "Force reinstalling primeagent-base: $BASE_WHEEL"
+            INSTALL_WHEELS=("$BASE_WHEEL")
             NO_DEPS="--no-deps"
             if [ "${{ inputs.pre_release }}" = "true" ]; then
+              # Keep local pre-release roots explicit while re-resolving deps. uv's
+              # if-necessary-or-explicit mode does not allow pre-release transitive
+              # deps found only through --find-links, such as primeagent-sdk dev wheels.
               NO_DEPS=""
+              LOCAL_WHEELS=()
+              if [ -d ./sdk-dist ]; then
+                SDK_WHEEL=$(find ./sdk-dist -name "*.whl" -type f | head -1)
+                if [ -n "$SDK_WHEEL" ]; then
+                  LOCAL_WHEELS+=("$SDK_WHEEL")
+                fi
+              fi
+              if [ -d ./wfx-dist ]; then
+                WFX_WHEEL=$(find ./wfx-dist -name "*.whl" -type f | head -1)
+                if [ -n "$WFX_WHEEL" ]; then
+                  LOCAL_WHEELS+=("$WFX_WHEEL")
+                fi
+              fi
+              INSTALL_WHEELS=("${LOCAL_WHEELS[@]}" "$BASE_WHEEL")
             fi
-            uv pip install --force-reinstall $NO_DEPS --prerelease=allow --python ./test-env/Scripts/python.exe "$BASE_WHEEL"
+            uv pip install --force-reinstall $NO_DEPS --prerelease=if-necessary-or-explicit "${FIND_LINKS[@]}" --python ./test-env/Scripts/python.exe "${INSTALL_WHEELS[@]}"
           fi
         shell: bash
 
       - name: Force reinstall local wheels to prevent downgrades (Unix)
         if: steps.install-method.outputs.method == 'wheel' && matrix.os != 'windows'
         run: |
+          # Expose the local wheel dirs so dependency re-resolution (the
+          # pre-release path below drops --no-deps) can find the local
+          # pre-release wfx/base wheels. Without these, uv re-resolves
+          # primeagent-base's `wfx>=X.Y.Zrc0` constraint against PyPI only, where
+          # the matching rc/dev wheel is not published yet, and fails with
+          # "No solution found when resolving dependencies".
+          FIND_LINKS=()
+          for wheel_dir in ./sdk-dist ./wfx-dist ./base-dist ./bundles-dist; do
+            if [ -d "$wheel_dir" ]; then
+              FIND_LINKS+=(--find-links "$wheel_dir")
+            fi
+          done
+
           # Reinstall WFX if it was provided
-          if [ -n "${{ inputs.wfx-artifact-name }}" ]; then
+          if [ -n "${{ inputs.wfx-artifact-name || needs.build-if-needed.outputs.wfx-artifact-name }}" ]; then
             WFX_WHEEL=$(find ./wfx-dist -name "*.whl" -type f | head -1)
             if [ -n "$WFX_WHEEL" ]; then
               echo "Force reinstalling WFX: $WFX_WHEEL"
+              INSTALL_WHEELS=("$WFX_WHEEL")
+              SDK_WHEEL=""
+              if [ -d ./sdk-dist ]; then
+                SDK_WHEEL=$(find ./sdk-dist -name "*.whl" -type f | head -1)
+              fi
+              if [ -n "$SDK_WHEEL" ]; then
+                echo "Force reinstalling primeagent-sdk with WFX: $SDK_WHEEL"
+                INSTALL_WHEELS=("$SDK_WHEEL" "$WFX_WHEEL")
+              fi
               NO_DEPS="--no-deps"
               if [ "${{ inputs.pre_release }}" = "true" ]; then
                 NO_DEPS=""
               fi
-              uv pip install --force-reinstall $NO_DEPS --prerelease=allow --python ./test-env/bin/python "$WFX_WHEEL"
+              uv pip install --force-reinstall $NO_DEPS --prerelease=if-necessary-or-explicit "${FIND_LINKS[@]}" --python ./test-env/bin/python "${INSTALL_WHEELS[@]}"
             fi
           fi
 
@@ -619,11 +742,29 @@ jobs:
           BASE_WHEEL=$(find ./base-dist -name "*.whl" -type f | head -1)
           if [ -n "$BASE_WHEEL" ]; then
             echo "Force reinstalling primeagent-base: $BASE_WHEEL"
+            INSTALL_WHEELS=("$BASE_WHEEL")
             NO_DEPS="--no-deps"
             if [ "${{ inputs.pre_release }}" = "true" ]; then
+              # Keep local pre-release roots explicit while re-resolving deps. uv's
+              # if-necessary-or-explicit mode does not allow pre-release transitive
+              # deps found only through --find-links, such as primeagent-sdk dev wheels.
               NO_DEPS=""
+              LOCAL_WHEELS=()
+              if [ -d ./sdk-dist ]; then
+                SDK_WHEEL=$(find ./sdk-dist -name "*.whl" -type f | head -1)
+                if [ -n "$SDK_WHEEL" ]; then
+                  LOCAL_WHEELS+=("$SDK_WHEEL")
+                fi
+              fi
+              if [ -d ./wfx-dist ]; then
+                WFX_WHEEL=$(find ./wfx-dist -name "*.whl" -type f | head -1)
+                if [ -n "$WFX_WHEEL" ]; then
+                  LOCAL_WHEELS+=("$WFX_WHEEL")
+                fi
+              fi
+              INSTALL_WHEELS=("${LOCAL_WHEELS[@]}" "$BASE_WHEEL")
             fi
-            uv pip install --force-reinstall $NO_DEPS --prerelease=allow --python ./test-env/bin/python "$BASE_WHEEL"
+            uv pip install --force-reinstall $NO_DEPS --prerelease=if-necessary-or-explicit "${FIND_LINKS[@]}" --python ./test-env/bin/python "${INSTALL_WHEELS[@]}"
           fi
         shell: bash
 
@@ -767,9 +908,9 @@ jobs:
             if [ "$experimental_result" = "success" ]; then
               if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
                 if [ -n "${{ inputs.primeagent-version }}" ]; then
-                  echo "✅ All PyPI installation tests passed (including Python 3.13)"
+                  echo "✅ All PyPI installation tests passed (including Python 3.14)"
                 else
-                  echo "✅ All source build and installation tests passed (including Python 3.13)"
+                  echo "✅ All source build and installation tests passed (including Python 3.14)"
                 fi
               else
                 echo "✅ All cross-platform tests passed - PyPI upload can proceed"
@@ -777,17 +918,17 @@ jobs:
             else
               if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
                 if [ -n "${{ inputs.primeagent-version }}" ]; then
-                  echo "✅ PyPI installation tests passed (Python 3.13 experimental failures are acceptable)"
+                  echo "✅ PyPI installation tests passed (Python 3.14 experimental failures are acceptable)"
                 else
-                  echo "✅ Source build and installation tests passed (Python 3.13 experimental failures are acceptable)"
+                  echo "✅ Source build and installation tests passed (Python 3.14 experimental failures are acceptable)"
                 fi
               else
-                echo "✅ Cross-platform tests passed - Python 3.13 experimental failures are acceptable - PyPI upload can proceed"
+                echo "✅ Cross-platform tests passed - Python 3.14 experimental failures are acceptable - PyPI upload can proceed"
               fi
             fi
           elif [ "$stable_result" = "failure" ]; then
             echo "❌ Critical platform tests failed - blocking release"
-            echo "Stable platforms (Python 3.10, 3.12) must pass for release"
+            echo "Stable platforms (Python 3.10, 3.12, 3.13) must pass for release"
             exit 1
           elif [ "$stable_result" = "cancelled" ]; then
             echo "❌ Critical platform tests were cancelled"
