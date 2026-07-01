@@ -14,7 +14,7 @@ on:
         description: "(Optional) Python versions to test"
         required: true
         type: string
-        default: "['3.10', '3.11', '3.12', '3.13']"
+        default: "['3.10', '3.11', '3.12', '3.13', '3.14']"
       ref:
         description: "(Optional) ref to checkout"
         required: false
@@ -35,7 +35,7 @@ on:
         description: "(Optional) Python versions to test"
         required: true
         type: string
-        default: "['3.10', '3.11', '3.12', '3.13']"
+        default: "['3.10', '3.11', '3.12', '3.13', '3.14']"
       runs-on:
         description: "Runner to use for the tests"
         required: false
@@ -43,7 +43,7 @@ on:
         options:
           - ubuntu-latest
           - self-hosted
-          - "[self-hosted, linux, ARM64, khulnasoft-arm64-40gb]"
+          - '["self-hosted", "linux", "ARM64", "khulnasoft-arm64-40gb-ephemeral"]'
         default: ubuntu-latest
 env:
   POETRY_VERSION: "1.8.2"
@@ -54,16 +54,15 @@ env:
 
 jobs:
   build:
-
     name: Unit Tests - Python ${{ matrix.python-version }} - Group ${{ matrix.group }}
     runs-on: ${{ (inputs['runs-on'] && startsWith(format('{0}', inputs['runs-on']), '[') && fromJSON(inputs['runs-on'])) || inputs['runs-on'] || github.event.inputs['runs-on'] || 'ubuntu-latest' }}
     strategy:
       matrix:
-        python-version: ${{ fromJson(inputs.python-versions || '["3.10", "3.11", "3.12", "3.13"]' ) }}
+        python-version: ${{ fromJson(inputs.python-versions || '["3.10", "3.11", "3.12", "3.13", "3.14"]') }}
         splitCount: [5]
         group: [1, 2, 3, 4, 5]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref || github.ref }}
 
@@ -94,7 +93,7 @@ jobs:
       - name: Run unit tests
         uses: nick-fields/retry@v3
         with:
-          timeout_minutes: 12
+          timeout_minutes: 50
           max_attempts: 2
           command: make unit_tests args="-x -vv --splits ${{ matrix.splitCount }} --group ${{ matrix.group }} --reruns 5 --cov --cov-config=src/backend/.coveragerc --cov-report=xml --cov-report=html"
 
@@ -110,7 +109,7 @@ jobs:
           directory: ./
 
       - name: Upload coverage artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: matrix.python-version == '3.10'
         with:
           name: backend-coverage-report-group-${{ matrix.group }}
@@ -119,15 +118,14 @@ jobs:
             htmlcov/
           retention-days: 30
 
-
   integration-tests:
     name: Integration Tests - Python ${{ matrix.python-version }}
     runs-on: ${{ (inputs['runs-on'] && startsWith(format('{0}', inputs['runs-on']), '[') && fromJSON(inputs['runs-on'])) || inputs['runs-on'] || github.event.inputs['runs-on'] || 'ubuntu-latest' }}
     strategy:
       matrix:
-        python-version: ${{ fromJson(inputs.python-versions || '["3.10", "3.11", "3.12", "3.13"]' ) }}
+        python-version: ${{ fromJson(inputs.python-versions || '["3.10", "3.11", "3.12", "3.13", "3.14"]') }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref || github.ref }}
       - name: "Setup Environment"
@@ -145,15 +143,14 @@ jobs:
           PYLEAK_LOG_LEVEL: debug # enable pyleak logging
           DO_NOT_TRACK: true # disable telemetry reporting
 
-
   wfx-tests:
     name: WFX Tests - Python ${{ matrix.python-version }}
     runs-on: ${{ (inputs['runs-on'] && startsWith(format('{0}', inputs['runs-on']), '[') && fromJSON(inputs['runs-on'])) || inputs['runs-on'] || github.event.inputs['runs-on'] || 'ubuntu-latest' }}
     strategy:
       matrix:
-        python-version: ${{ fromJson(inputs.python-versions || '["3.10", "3.11", "3.12", "3.13"]' ) }}
+        python-version: ${{ fromJson(inputs.python-versions || '["3.10", "3.11", "3.12", "3.13", "3.14"]') }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref || github.ref }}
       - name: "Setup Environment"
@@ -180,7 +177,7 @@ jobs:
           directory: ./src/wfx/
 
       - name: Upload coverage artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: matrix.python-version == '3.10'
         with:
           name: wfx-coverage-report
@@ -194,10 +191,10 @@ jobs:
     runs-on: ${{ (inputs['runs-on'] && startsWith(format('{0}', inputs['runs-on']), '[') && fromJSON(inputs['runs-on'])) || inputs['runs-on'] || github.event.inputs['runs-on'] || 'ubuntu-latest' }}
     strategy:
       matrix:
-        python-version: ${{ fromJson(inputs.python-versions || '["3.10", "3.11", "3.12", "3.13"]') }}
+        python-version: ${{ fromJson(inputs.python-versions || '["3.10", "3.11", "3.12", "3.13", "3.14"]') }}
     steps:
       - name: Check out the code at a specific ref
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref || github.ref }}
       - name: "Setup Environment"
@@ -210,13 +207,13 @@ jobs:
 
       - name: Check Version
         id: check-version
-        # We need to print $3 because primeagent-base is a dependency of primeagent
+        # We need to print $3 because primeagfent-base is a dependency of primeagfent
         # For langlow we'd use print $2
         run: |
-          version=$(uv tree | grep 'primeagent-base' | awk '{print $3}' | sed 's/^v//' | head -n 1)
-          url="https://pypi.org/pypi/primeagent-base/json"
+          version=$(uv tree | grep 'primeagfent-base' | awk '{print $3}' | sed 's/^v//' | head -n 1)
+          url="https://pypi.org/pypi/primeagfent-base/json"
           if [ ${{ inputs.nightly }} == true ]; then
-            url="https://pypi.org/pypi/primeagent-base-nightly/json"
+            url="https://pypi.org/pypi/primeagfent-base-nightly/json"
           fi
 
           last_released_version=$(curl -s $url | jq -r '.releases | keys | .[]' | sort -V | tail -n 1)
@@ -242,7 +239,7 @@ jobs:
         if: steps.check-version.outputs.skipped == 'false'
         run: |
           source new-venv/bin/activate
-          python -m primeagent run --host localhost --port 7860 --backend-only &
+          python -m primeagfent run --host localhost --port 7860 --backend-only &
           SERVER_PID=$!
           # Wait for the server to start
           timeout 120 bash -c 'until curl -f http://localhost:7860/api/v1/auto_login; do sleep 5; done' || (echo "Server did not start in time" && kill $SERVER_PID && exit 1)
@@ -256,4 +253,3 @@ jobs:
           else
             echo "Server terminated successfully"
           fi
-

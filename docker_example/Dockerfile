@@ -1,3 +1,3 @@
-FROM khulnasoft/primeagent:latest
+FROM khulnasoft/primeagfent:latest
 
-CMD ["python", "-m", "primeagent", "run", "--host", "0.0.0.0", "--port", "7860"]
+CMD ["python", "-m", "primeagfent", "run", "--host", "0.0.0.0", "--port", "7860"]

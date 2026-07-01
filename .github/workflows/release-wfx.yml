@@ -45,7 +45,7 @@ jobs:
       current_version: ${{ steps.check.outputs.current_version }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Environment
         uses: astral-sh/setup-uv@v6
@@ -92,10 +92,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Environment
         uses: astral-sh/setup-uv@v6
@@ -126,7 +126,7 @@ jobs:
       version: ${{ steps.check-version.outputs.version }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Environment
         uses: astral-sh/setup-uv@v6
@@ -185,7 +185,7 @@ jobs:
           echo "WFX CLI test completed successfully"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: wfx-dist
           path: src/wfx/dist/
@@ -209,7 +209,7 @@ jobs:
         variant: [production, alpine]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -261,7 +261,7 @@ jobs:
             org.opencontainers.image.version=${{ github.event.inputs.version }}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: src/wfx/docker/Dockerfile${{ matrix.variant == 'alpine' && '.alpine' || '' }}
@@ -276,15 +276,15 @@ jobs:
 
   create-release:
     name: Create GitHub Release
-    needs: [release-wfx, build-docker]
+    needs: [validate-version, release-wfx, build-docker]
     if: always() && github.event.inputs.create_github_release == 'true' && needs.release-wfx.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Download artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: wfx-dist
           path: dist/
@@ -337,6 +337,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: wfx-v${{ github.event.inputs.version }}
+          # Pin the minted tag to the commit this release was built from;
+          # without it GitHub creates the tag at the default-branch HEAD.
+          target_commitish: ${{ github.sha }}
           name: WFX ${{ github.event.inputs.version }}
           body_path: release_notes.md
           draft: false

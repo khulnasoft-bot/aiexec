@@ -2,23 +2,29 @@
 python:
   - "src/backend/**"
   - "src/backend/**.py"
+  - "src/wfx/**"
   - "pyproject.toml"
   - "uv.lock"
   - "src/backend/base/pyproject.toml"
-  - "src/backend/base/uv.lock"
+  - "src/wfx/pyproject.toml"
   - "**/python_test.yml"
   - ".github/workflows/ci.yml"
+  - "src/wfx/src/wfx/_assets/component_index.json"
 components-changes:
-  - "src/backend/base/primeagent/components/**"
+  - "src/backend/base/primeagfent/components/**"
+  - "src/wfx/src/wfx/components/**"
+  - "src/wfx/src/wfx/_assets/component_index.json"
 starter-projects-changes:
-  - "src/backend/base/primeagent/initial_setup/**"
+  - "src/backend/base/primeagfent/initial_setup/**"
 frontend-tests:
   - "src/frontend/tests/**"
 frontend:
   - "src/frontend/**"
   - "**/typescript_test.yml"
   - "**/jest_test.yml"
+  - "**/lint-js.yml"
   - ".github/workflows/ci.yml"
+  - "src/wfx/src/wfx/_assets/component_index.json"
 docs:
   - "docs/**"
 docker:
@@ -27,21 +33,22 @@ docker:
   - "pyproject.toml"
   - "src/backend/**"
   - "src/frontend/**"
+  - "src/wfx/**"
   - ".dockerignore"
   - ".github/workflows/docker_test.yml"
 
 # Test categories and their associated paths
 starter-projects:
-  - "src/backend/base/primeagent/initial_setup/**"
-  - "src/backend/base/primeagent/components/**"
-  - "src/backend/base/primeagent/services/**"
-  - "src/backend/base/primeagent/custom/**"
-  - "src/backend/base/primeagent/api/v1/chat.py"
+  - "src/backend/base/primeagfent/initial_setup/**"
+  - "src/backend/base/primeagfent/components/**"
+  - "src/backend/base/primeagfent/services/**"
+  - "src/backend/base/primeagfent/custom/**"
+  - "src/backend/base/primeagfent/api/v1/chat.py"
   - "src/frontend/src/pages/MainPage/**"
   - "src/frontend/src/utils/reactflowUtils.ts"
   - "src/frontend/tests/extended/features/**"
-  - "src/backend/base/primeagent/custom/**"
-  - "src/backend/base/primeagent/graph/**"
+  - "src/backend/base/primeagfent/custom/**"
+  - "src/backend/base/primeagfent/graph/**"
 
 components:
   - "src/frontend/src/components/**"
@@ -58,17 +65,23 @@ components:
   - "src/frontend/tests/extended/integrations/**"
   - "src/frontend/tests/extended/features/**"
   - "src/frontend/tests/extended/regression/**"
-  - "src/backend/base/primeagent/custom/**"
-  - "src/backend/base/primeagent/schema/**"
-  - "src/backend/base/primeagent/graph/**"
-  - "src/backend/base/primeagent/utils/**"
-  - "src/backend/base/primeagent/custom/**"
-  - "src/backend/base/primeagent/components/**"
-  - "src/backend/base/primeagent/initial_setup/**"
-  - "src/backend/base/primeagent/serialization/**"
+  - "src/backend/base/primeagfent/custom/**"
+  - "src/backend/base/primeagfent/schema/**"
+  - "src/backend/base/primeagfent/graph/**"
+  - "src/backend/base/primeagfent/utils/**"
+  - "src/backend/base/primeagfent/custom/**"
+  - "src/backend/base/primeagfent/components/**"
+  - "src/backend/base/primeagfent/initial_setup/**"
+  - "src/backend/base/primeagfent/serialization/**"
+  - "src/wfx/src/wfx/components/**"
+  - "src/wfx/src/wfx/custom/**"
+  - "src/wfx/src/wfx/schema/**"
+  - "src/wfx/src/wfx/graph/**"
+  - "src/wfx/src/wfx/_assets/component_index.json"
 
 workspace:
-  - "src/backend/base/primeagent/inputs/**"
+  - "src/backend/base/primeagfent/inputs/**"
+  - "src/wfx/src/wfx/inputs/**"
   - "src/frontend/src/components/core/parameterRenderComponent/**"
   - "src/frontend/src/CustomNodes/**"
   - "src/frontend/src/modals/**"
@@ -82,18 +95,22 @@ workspace:
   - "src/frontend/tests/core/regression/**"
 
 api:
-  - "src/backend/base/primeagent/api/**"
+  - "src/backend/base/primeagfent/api/**"
   - "src/frontend/src/controllers/**"
   - "src/frontend/tests/core/features/**"
   - "src/frontend/tests/extended/features/**"
   - "src/frontend/tests/extended/regression/**"
 
 database:
-  - "src/backend/base/primeagent/services/database/**"
-  - "src/backend/base/primeagent/alembic/**"
+  - "src/backend/base/primeagfent/services/database/**"
+  - "src/backend/base/primeagfent/alembic/**"
   - "src/frontend/src/controllers/**"
   - "src/frontend/tests/core/features/**"
   - "src/frontend/tests/extended/features/**"
 
 mainpage:
   - "src/frontend/src/pages/MainPage/**"
+
+design-md:
+  - "DESIGN.md"
+  - ".github/workflows/ci.yml"

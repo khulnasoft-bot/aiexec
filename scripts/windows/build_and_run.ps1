@@ -58,7 +58,7 @@ try {
         throw "Neither build nor dist directory found in src\frontend"
     }
 
-    $targetDir = "src\backend\base\primeagent\frontend"
+    $targetDir = "src\backend\base\primeagfent\frontend"
     Write-Host "Copying from $buildDir to $targetDir"
 
     # Create target directory if it doesn't exist
@@ -90,12 +90,12 @@ try {
     Set-Location $projectRoot
     if ($useEnvFile) {
         Write-Host "Using env file: .env" -ForegroundColor Cyan
-        & uv run --env-file ".env" primeagent run
+        & uv run --env-file ".env" primeagfent run
     } else {
-        & uv run primeagent run
+        & uv run primeagfent run
     }
 } catch {
-    Write-Host "Error running primeagent: $_" -ForegroundColor Red
+    Write-Host "Error running primeagfent: $_" -ForegroundColor Red
     Read-Host "Press Enter to exit"
     exit 1
 }

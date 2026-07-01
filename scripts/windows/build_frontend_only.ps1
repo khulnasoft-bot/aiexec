@@ -49,7 +49,7 @@ try {
         throw "Neither build nor dist directory found in src\frontend"
     }
 
-    $targetDir = "src\backend\base\primeagent\frontend"
+    $targetDir = "src\backend\base\primeagfent\frontend"
     Write-Host "Copying from $buildDir to $targetDir"
 
     # Create target directory if it doesn't exist
@@ -74,5 +74,5 @@ try {
 }
 
 Write-Host "`nFrontend build process completed!" -ForegroundColor Green
-Write-Host "You can now run the backend with: uv run primeagent run" -ForegroundColor Cyan
+Write-Host "You can now run the backend with: uv run primeagfent run" -ForegroundColor Cyan
 Read-Host "Press Enter to exit"
