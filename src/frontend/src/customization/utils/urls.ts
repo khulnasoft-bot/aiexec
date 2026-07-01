@@ -1,3 +1,3 @@
 export const PrimeagentButtonRedirectTarget = () => {
-  return "https://primeagent.org";
+  return "https://prime.khulnasoft.com";
 };

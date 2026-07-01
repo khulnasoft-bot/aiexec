@@ -1,30 +1,34 @@
 version: "3.8"
 
 services:
-  primeagent:
-    image: khulnasoft/primeagent:1.0-alpha
+  primeagfent:
+    image: khulnasoft/primeagfent:1.0-alpha
     ports:
       - "7860:7860"
     depends_on:
       - postgres
     environment:
-      - PRIMEAGENT_DATABASE_URL=postgresql://primeagent:primeagent@postgres:5432/primeagent
+      - PRIMEAGFENT_DATABASE_URL=postgresql://primeagfent:primeagfent@postgres:5432/primeagfent
       # This variable defines where the logs, file storage, monitor data and secret keys are stored.
-      - PRIMEAGENT_CONFIG_DIR=app/primeagent
+      - PRIMEAGFENT_CONFIG_DIR=app/primeagfent
     volumes:
-      - primeagent-data:/app/primeagent
+      - primeagfent-data:/app/primeagfent
 
   postgres:
-    image: postgres:16
+    # Pinned to a specific Debian base (trixie) so the postgres:16 tag does not
+    # silently roll its OS underneath us — that roll causes a glibc collation
+    # version mismatch warning on existing volumes. Matches the primeagfent image
+    # base. See https://github.com/khulnasoft/primeagfent/issues/9608
+    image: postgres:16-trixie
     environment:
-      POSTGRES_USER: primeagent
-      POSTGRES_PASSWORD: primeagent
-      POSTGRES_DB: primeagent
+      POSTGRES_USER: primeagfent
+      POSTGRES_PASSWORD: primeagfent
+      POSTGRES_DB: primeagfent
     ports:
       - "5432:5432"
     volumes:
-      - primeagent-postgres:/var/lib/postgresql/data
+      - primeagfent-postgres:/var/lib/postgresql/data
 
 volumes:
-  primeagent-postgres:
-  primeagent-data:
+  primeagfent-postgres:
+  primeagfent-data:

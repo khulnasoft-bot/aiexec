@@ -1,11 +1,11 @@
 # Cross-Platform Install Tests
 
-Unified workflow for testing primeagent installation across multiple platforms, supporting both manual and programmatic execution.
+Unified workflow for testing primeagfent installation across multiple platforms, supporting both manual and programmatic execution.
 
 ## Manual Testing
 
 ### 1. Test from PyPI
-Tests published primeagent packages from PyPI across all platforms.
+Tests published primeagfent packages from PyPI across all platforms.
 
 **Via GitHub UI:**
 1. Go to **Actions** → **Cross-Platform Installation Test**
@@ -21,11 +21,11 @@ gh workflow run cross-platform-test.yml -f test-from-pypi=true
 # Test specific version
 gh workflow run cross-platform-test.yml \
   -f test-from-pypi=true \
-  -f primeagent-version="1.0.18"
+  -f primeagfent-version="1.0.18"
 ```
 
 ### 2. Test from Source
-Builds and tests primeagent from current branch source code using release-like dependency resolution (transforms workspace dependencies to published packages for testing parity).
+Builds and tests primeagfent from current branch source code using release-like dependency resolution (transforms workspace dependencies to published packages for testing parity).
 
 **Via GitHub UI:**
 1. Go to **Actions** → **Cross-Platform Installation Test**
@@ -58,17 +58,22 @@ jobs:
 - **macOS**: Intel (AMD64), Apple Silicon (ARM64)
 - **Windows**: AMD64
 - **Python versions**:
-  - **All platforms**: 3.10, 3.12, and 3.13
-  - **Stability**: 3.10 and 3.12 are required to pass (blocking)
-  - **Preview**: 3.13 testing is optional (non-blocking) to monitor ecosystem readiness
+  - **All platforms**: 3.10, 3.12, 3.13, and 3.14
+  - **Stability**: 3.10, 3.12, and 3.13 are required to pass (blocking)
+  - **Preview**: 3.14 testing is optional (non-blocking) to monitor ecosystem readiness
+  - **Note**: macOS Intel (x86_64) is tested only on Python 3.12. macOS x86_64 is
+    being dropped across the ecosystem — PyTorch ships no x86_64 wheels for py>=3.13
+    and onnxruntime shipped none after 1.23 — and primeagfent requires `onnxruntime>=1.26`
+    on py>=3.14, so macOS Intel + py>=3.14 cannot resolve. The 3.13 (blocking) and
+    3.14 (preview) sets therefore run on Linux, Windows, and macOS arm64 only
 
 ## What Gets Tested
 
-1. **Package Installation**: `uv pip install primeagent` (PyPI) or local wheel installation
+1. **Package Installation**: `uv pip install primeagfent` (PyPI) or local wheel installation
 2. **Dependencies**: Additional packages like `openai` for full functionality
-3. **CLI Help**: `primeagent --help`
-4. **Server Startup**: `primeagent run --backend-only` with `/health_check` endpoint validation
-5. **Python Import**: `import primeagent`
+3. **CLI Help**: `primeagfent --help`
+4. **Server Startup**: `primeagfent run --backend-only` with `/health_check` endpoint validation
+5. **Python Import**: `import primeagfent`
 
 ## Common Options
 
@@ -80,7 +85,7 @@ gh workflow run cross-platform-test.yml \
 # Test specific PyPI version
 gh workflow run cross-platform-test.yml \
   -f test-from-pypi=true \
-  -f primeagent-version="1.0.18"
+  -f primeagfent-version="1.0.18"
 ```
 
 ## Use Cases
@@ -103,8 +108,8 @@ gh workflow run cross-platform-test.yml \
 - **Timeout**: Configurable timeout with proper cross-platform handling
 
 ### Platform-Specific Optimizations
-- **Stable versions**: Python 3.10 and 3.12 provide reliable package ecosystem support
-- **Preview testing**: Python 3.13 runs as non-blocking to monitor when it becomes viable
+- **Stable versions**: Python 3.10, 3.12, and 3.13 provide reliable package ecosystem support
+- **Preview testing**: Python 3.14 runs as non-blocking to monitor when it becomes viable
 - **Virtual Environments**: Uses `uv venv --seed` for consistent pip availability
 
 ### Workflow Architecture
@@ -176,20 +181,22 @@ error: command '/usr/bin/clang++' failed with exit code 1
 
 | Build Type | Package Source | Dependencies | chromadb | Result |
 |------------|----------------|--------------|----------|---------|
-| **Manual/Source** | Workspace (`primeagent-base = { workspace = true }`) | 162 packages | ❌ Not included | ✅ Success |
-| **Nightly/Release** | Published (`primeagent-base-nightly==0.5.0.dev21`) | 420 packages | ✅ Included | ❌ Compilation fails |
+| **Manual/Source** | Workspace (`primeagfent-base = { workspace = true }`) | 162 packages | ❌ Not included | ✅ Success |
+| **Nightly/Release** | Published (`primeagfent-base-nightly==0.5.0.dev21`) | 420 packages | ✅ Included | ❌ Compilation fails |
 
 **Technical Details**:
 1. **Workspace builds** use local `src/backend/base/pyproject.toml` which excludes `chromadb`
 2. **Nightly builds** modify dependencies via `scripts/ci/update_uv_dependency.py`:
-   - Changes: `primeagent-base~=0.5.0` → `primeagent-base-nightly==0.5.0.dev21`
+   - Changes: `primeagfent-base~=0.5.0` → `primeagfent-base-nightly==0.5.0.dev21`
    - Uses published PyPI package with full dependency tree including `chromadb==0.5.23`
 3. **macOS clang** doesn't support `-march=native` flag used by `chroma-hnswlib` compilation
 
 **Current Status**:
-- **Stable testing**: Python 3.10 and 3.12 are required to pass (blocking jobs)
-- **Preview testing**: Python 3.13 runs as non-blocking to monitor ecosystem readiness
-- **Compilation issues**: Python 3.13 may still fail due to `chroma-hnswlib` but won't block releases
+- **Stable testing**: Python 3.10, 3.12, and 3.13 are required to pass (blocking jobs)
+- **Preview testing**: Python 3.14 runs as non-blocking to monitor ecosystem readiness
+- **Compilation issues**: the historical `chroma-hnswlib` failure is avoided on the tested install
+  paths (workspace/source builds exclude `chromadb`); a similar upstream issue surfacing on the
+  preview (3.14) tier stays non-blocking
 - **Manual testing**: Source builds now use the same dependency transformation as nightly builds for testing parity
 
 **Files Involved**:

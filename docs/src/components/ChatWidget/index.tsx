@@ -3,9 +3,9 @@ import React, { useEffect } from 'react';
 // Component to load the chat widget script
 const ChatScriptLoader = () => {
   useEffect(() => {
-    if (!document.querySelector('script[src*="primeagent-embedded-chat"]')) {
+    if (!document.querySelector('script[src*="primeagfent-embedded-chat"]')) {
       const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/gh/khulnasoft/primeagent-embedded-chat@main/dist/build/static/js/bundle.min.js';
+      script.src = 'https://cdn.jsdelivr.net/gh/khulnasoft/primeagfent-embedded-chat@main/dist/build/static/js/bundle.min.js';
       script.async = true;
       document.body.appendChild(script);
     }
@@ -17,7 +17,7 @@ const ChatScriptLoader = () => {
 declare global {
     namespace JSX {
       interface IntrinsicElements {
-        "primeagent-chat": any;
+        "primeagfent-chat": any;
       }
     }
   }
@@ -26,10 +26,10 @@ declare global {
     return (
       <div className={className}>
         <ChatScriptLoader />
-        <primeagent-chat
+        <primeagfent-chat
           host_url="http://localhost:7860"
           flow_id="YOUR_FLOW_ID"
-        ></primeagent-chat>
+        ></primeagfent-chat>
       </div>
     );
   }

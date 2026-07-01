@@ -22,13 +22,13 @@ jobs:
 
     steps:
       - name: Checkout PR
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref: ${{ github.event.inputs.ref || github.ref }}
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -59,8 +59,8 @@ jobs:
             --tb=short \
             -v
         env:
-          PRIMEAGENT_SUPERUSER: admin
-          PRIMEAGENT_SUPERUSER_PASSWORD: 123456
+          PRIMEAGFENT_SUPERUSER: admin
+          PRIMEAGFENT_SUPERUSER_PASSWORD: 123456
 
   wfx-smoke-tests:
     # created a separate label for this since it's a different test suite for WFX components
@@ -71,13 +71,13 @@ jobs:
 
     steps:
       - name: Checkout PR
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref: ${{ github.event.inputs.ref || github.ref }}
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -103,8 +103,8 @@ jobs:
             --maxfail=5 \
             -v
         env:
-          PRIMEAGENT_SUPERUSER: admin
-          PRIMEAGENT_SUPERUSER_PASSWORD: 123456
+          PRIMEAGFENT_SUPERUSER: admin
+          PRIMEAGFENT_SUPERUSER_PASSWORD: 123456
 
   frontend-smoke-tests:
     if: contains(github.event.pull_request.labels.*.name, 'smoke-test') || github.event_name == 'release' || github.event_name == 'workflow_dispatch'
@@ -114,7 +114,7 @@ jobs:
 
     steps:
       - name: Checkout PR
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref: ${{ github.event.inputs.ref || github.ref }}
@@ -146,7 +146,7 @@ jobs:
 
     steps:
       - name: Comment on PR with results
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const backendStatus = '${{ needs.backend-smoke-tests.result }}';
@@ -166,7 +166,7 @@ jobs:
             Critical functionality validated:
 
             - ${backendEmoji} **Backend**: 11 essential test files (database, auth, API endpoints, flows, components)
-            - ${wfxEmoji} **WFX**: Graph tests (primeagent execution) - runs in isolation
+            - ${wfxEmoji} **WFX**: Graph tests (primeagfent execution) - runs in isolation
             - ${frontendEmoji} **Frontend**: Unit tests only (components, utilities)
             
             **Coverage**: Core functionality without external dependencies

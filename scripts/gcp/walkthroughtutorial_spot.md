@@ -25,11 +25,11 @@ Before you start, make sure you have the following prerequisites:
 In the next step, you'll configure the GCP environment and deploy Primeagent.
 
 ## Configure the GCP environment and deploy Primeagent
-Run the deploy_primeagent_gcp_spot.sh script to configure the GCP environment and deploy Primeagent:
+Run the deploy_primeagfent_gcp_spot.sh script to configure the GCP environment and deploy Primeagent:
 
 ```sh
 gcloud config set project <walkthrough-project-id/>
-bash ./deploy_primeagent_gcp_spot.sh
+bash ./deploy_primeagfent_gcp_spot.sh
 ```
 
 The script will:
@@ -50,9 +50,9 @@ To connect to your new Primeagent VM, follow these steps:
 <br>**or**
 3. Run the following command to display the URL for your Primeagent environment:
 ```bash
-export PRIMEAGENT_IP=$(gcloud compute instances list --filter="NAME=primeagent-dev" --format="value(EXTERNAL_IP)")
+export PRIMEAGFENT_IP=$(gcloud compute instances list --filter="NAME=primeagfent-dev" --format="value(EXTERNAL_IP)")
 
-echo http://$PRIMEAGENT_IP:7860
+echo http://$PRIMEAGFENT_IP:7860
 ```
 
 4. Click on the Primeagent URL in cloudshell to be greeted by the Primeagent Dev environment
@@ -65,7 +65,7 @@ Congratulations! You have successfully deployed Primeagent on Google Cloud Platf
 If you want to remove the resources created during this tutorial, you can use the following commands:
 
 ```sql
-gcloud compute instances delete primeagent-dev --zone us-central1-a --quiet
+gcloud compute instances delete primeagfent-dev --zone us-central1-a --quiet
 ```
 The following network settings and services are used during this walkthrough. If you plan to continue using the project after the walkthrough, you may keep these configurations in place.
 

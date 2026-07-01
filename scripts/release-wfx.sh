@@ -67,7 +67,7 @@ done
 
 # Check if we're in the right directory
 if [ ! -f "src/wfx/pyproject.toml" ]; then
-    print_error "This script must be run from the root of the primeagent repository"
+    print_error "This script must be run from the root of the primeagfent repository"
     exit 1
 fi
 
@@ -104,6 +104,16 @@ if ! [[ $NEW_VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$ ]]; then
 fi
 
 print_info "Preparing to release WFX version $NEW_VERSION"
+
+# Soft check: warn if WFX minor doesn't match Primeagent minor
+PRIMEAGFENT_VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
+WFX_MINOR=$(echo "$NEW_VERSION" | cut -d. -f1-2)
+PRIMEAGFENT_MINOR=$(echo "$PRIMEAGFENT_VERSION" | cut -d. -f1-2)
+if [ "$WFX_MINOR" != "$PRIMEAGFENT_MINOR" ]; then
+    print_warning "WFX minor version ($WFX_MINOR) does not match Primeagent minor version ($PRIMEAGFENT_MINOR)."
+    print_warning "Per the compatibility policy, WFX X.Y.N must align with Primeagent X.Y.M."
+    print_warning "Proceed only if this is intentional (e.g., a patch-only WFX release)."
+fi
 
 # Update version in pyproject.toml
 if [ "$DRY_RUN" = true ]; then
@@ -204,7 +214,7 @@ else
     echo "   git push origin $TAG_NAME"
     echo ""
     echo "2. Go to GitHub Actions and run the 'WFX Release' workflow:"
-    echo "   https://github.com/khulnasoft/primeagent/actions/workflows/release-wfx.yml"
+    echo "   https://github.com/khulnasoft/primeagfent/actions/workflows/release-wfx.yml"
     echo ""
     echo "3. Enter version: $NEW_VERSION"
     echo ""

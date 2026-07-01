@@ -24,7 +24,7 @@ on:
         required: false
         type: boolean
         default: false
-      nightly_tag_main:
+      nightly_tag_release:
         description: "Tag for the nightly main build"
         required: true
         type: string
@@ -34,6 +34,10 @@ on:
         type: string
       nightly_tag_wfx:
         description: "Tag for the nightly WFX build"
+        required: false
+        type: string
+      nightly_tag_sdk:
+        description: "Tag for the nightly SDK build"
         required: false
         type: string
       push_to_registry:
@@ -58,9 +62,9 @@ jobs:
         shell: bash
     steps:
       - name: Check out the code at a specific ref
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.nightly_tag_main }}
+          ref: ${{ inputs.nightly_tag_release }}
           persist-credentials: true
       - name: "Setup Environment"
         uses: astral-sh/setup-uv@v6
@@ -72,14 +76,29 @@ jobs:
       - name: Install WFX dependencies
         run: cd src/wfx && uv sync
 
+      - name: Verify SDK Nightly Name and Version
+        if: ${{ inputs.build_wfx }}
+        run: |
+          name=$(grep '^name = "' src/sdk/pyproject.toml | head -n 1 | sed 's/.*"\(.*\)".*/\1/')
+          version=$(grep '^version = "' src/sdk/pyproject.toml | head -n 1 | sed 's/.*"\(.*\)".*/\1/')
+          if [ "$name" != "primeagfent-sdk" ]; then
+            echo "Name $name does not match primeagfent-sdk. Exiting the workflow."
+            exit 1
+          fi
+          if [ "v$version" != "${{ inputs.nightly_tag_sdk }}" ]; then
+            echo "Version v$version does not match nightly tag ${{ inputs.nightly_tag_sdk }}. Exiting the workflow."
+            exit 1
+          fi
+
       - name: Verify Nightly Name and Version
         id: verify
         run: |
           cd src/wfx
-          name=$(uv tree | grep 'wfx' | head -n 1 | awk '{print $1}')
-          version=$(uv tree | grep 'wfx' | head -n 1 | awk '{print $2}')
-          if [ "$name" != "wfx-nightly" ]; then
-            echo "Name $name does not match wfx-nightly. Exiting the workflow."
+          # Root the tree at wfx; a bare `grep wfx` matches bundles like `wfx-ibm` first.
+          name=$(uv tree --package wfx | head -n 1 | awk '{print $1}')
+          version=$(uv tree --package wfx | head -n 1 | awk '{print $2}')
+          if [ "$name" != "wfx" ]; then
+            echo "Name $name does not match wfx. Exiting the workflow."
             exit 1
           fi
           if [ "$version" != "${{ inputs.nightly_tag_wfx }}" ]; then
@@ -90,6 +109,10 @@ jobs:
           version=$(echo $version | sed 's/^v//')
           echo "version=$version" >> $GITHUB_OUTPUT
 
+      - name: Build primeagfent-sdk for distribution
+        run: |
+          make sdk_build args="--wheel"
+
       - name: Build WFX for distribution
         run: |
           cd src/wfx
@@ -99,14 +122,23 @@ jobs:
       - name: Test WFX CLI
         run: |
           cd src/wfx
-          uv pip install dist/*.whl --force-reinstall
-          uv run wfx --help
+          # Use a clean venv and install both wheels together so uv can resolve
+          # the local SDK dependency without falling back to PyPI.
+          uv venv test-env --seed
+          uv pip install --python ./test-env/bin/python --force-reinstall ../sdk/dist/*.whl dist/*.whl
+          ./test-env/bin/wfx --help
           echo "WFX CLI test completed successfully"
 
       # PyPI publishing moved to after cross-platform testing
 
+      - name: Upload primeagfent-sdk Artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: dist-nightly-sdk
+          path: src/sdk/dist
+
       - name: Upload WFX Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dist-nightly-wfx
           path: src/wfx/dist
@@ -124,9 +156,9 @@ jobs:
       skipped: ${{ steps.verify.outputs.skipped }}
     steps:
       - name: Check out the code at a specific ref
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.nightly_tag_main }}
+          ref: ${{ inputs.nightly_tag_release }}
           persist-credentials: true
       - name: "Setup Environment"
         uses: astral-sh/setup-uv@v6
@@ -135,43 +167,64 @@ jobs:
           cache-dependency-glob: "uv.lock"
           python-version: ${{ env.PYTHON_VERSION }}
           prune-cache: false
+
+      - name: Download WFX artifact
+        if: inputs.build_wfx
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-nightly-wfx
+          path: wfx-dist
+
       - name: Install the project
         run: uv sync
 
-      - name: Wait for PyPI Propagation
+      - name: Force reinstall WFX from built wheel
         if: inputs.build_wfx
-        run: sleep 300 # wait for 5 minutes to ensure PyPI propagation of WFX
+        run: |
+          echo "Installing WFX from built wheel to test the actual distribution package..."
+          # While workspace resolution installs from source, we want to test the exact
+          # wheel that will be published to PyPI to catch any packaging issues
+          uv pip install --force-reinstall --no-deps wfx-dist/*.whl
 
       - name: Verify Nightly Name and Version
         id: verify
         run: |
-          name=$(uv tree | grep 'primeagent-base' | awk '{print $2}' | head -n 1)
-          version=$(uv tree | grep 'primeagent-base' | awk '{print $3}' | head -n 1)
-          if [ "$name" != "primeagent-base-nightly" ]; then
-            echo "Name $name does not match primeagent-base-nightly. Exiting the workflow."
+          # Root the tree at primeagfent-base; it prints as a top-level `primeagfent-base v<ver>` line,
+          # so a bare `grep primeagfent-base` would read the version into $name and leave $version empty.
+          name=$(uv tree --package primeagfent-base | head -n 1 | awk '{print $1}')
+          version=$(uv tree --package primeagfent-base | head -n 1 | awk '{print $2}')
+          # Strip extras from package name (e.g., "primeagfent-base[complete]" -> "primeagfent-base")
+          name_without_extras=$(echo $name | sed 's/\[.*\]//')
+          if [ "$name_without_extras" != "primeagfent-base" ]; then
+            echo "Name $name_without_extras does not match primeagfent-base. Exiting the workflow."
+            echo "skipped=true" >> $GITHUB_OUTPUT
             exit 1
           fi
           if [ "$version" != "${{ inputs.nightly_tag_base }}" ]; then
             echo "Version $version does not match nightly tag ${{ inputs.nightly_tag_base }}. Exiting the workflow."
+            echo "skipped=true" >> $GITHUB_OUTPUT
             exit 1
           fi
           # Strip the leading `v` from the version
           version=$(echo $version | sed 's/^v//')
           echo "version=$version" >> $GITHUB_OUTPUT
+          echo "skipped=false" >> $GITHUB_OUTPUT
 
       - name: Build Primeagent Base for distribution
         run: |
           rm -rf src/backend/base/dist
           rm -rf dist
-          make build base=true args="--wheel"
+          make build base=true args="--no-sources --wheel"
 
       - name: Test Primeagent Base CLI
         run: |
           # TODO: Unsure why the whl is not built in src/backend/base/dist
           mkdir src/backend/base/dist
           mv dist/*.whl src/backend/base/dist/
-          uv pip install src/backend/base/dist/*.whl
-          uv run python -m primeagent run --host localhost --port 7860 --backend-only &
+          # Install with [complete] extra to test all optional dependencies
+          WHEEL_FILE=$(ls src/backend/base/dist/*.whl)
+          uv pip install "${WHEEL_FILE}[complete]"
+          uv run python -m primeagfent run --host localhost --port 7860 --backend-only &
           SERVER_PID=$!
           # Wait for the server to start
           timeout 120 bash -c 'until curl -f http://localhost:7860/api/v1/auto_login; do sleep 2; done' || (echo "Server did not start in time" && kill $SERVER_PID && exit 1)
@@ -189,7 +242,7 @@ jobs:
       # PyPI publishing moved to after cross-platform testing
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dist-nightly-base
           path: src/backend/base/dist
@@ -205,9 +258,9 @@ jobs:
         shell: bash
     steps:
       - name: Check out the code at a specific ref
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.nightly_tag_main}}
+          ref: ${{ inputs.nightly_tag_release}}
           persist-credentials: true
       - name: "Setup Environment"
         uses: astral-sh/setup-uv@v6
@@ -216,20 +269,45 @@ jobs:
           cache-dependency-glob: "uv.lock"
           python-version: ${{ env.PYTHON_VERSION }}
           prune-cache: false
+
+      - name: Download WFX artifact
+        if: inputs.build_wfx
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-nightly-wfx
+          path: wfx-dist
+
+      - name: Download base artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-nightly-base
+          path: base-dist
+
       - name: Install the project
         run: uv sync
+
+      - name: Force reinstall packages from built wheels
+        run: |
+          # While workspace resolution installs from source, we want to test the exact
+          # wheels that will be published to PyPI to catch any packaging issues
+          if [ "${{ inputs.build_wfx }}" == "true" ]; then
+            echo "Installing WFX from built wheel..."
+            uv pip install --force-reinstall --no-deps wfx-dist/*.whl
+          fi
+          echo "Installing primeagfent-base from built wheel..."
+          uv pip install --force-reinstall --no-deps base-dist/*.whl
 
       - name: Verify Nightly Name and Version
         id: verify
         run: |
-          name=$(uv tree | grep 'primeagent' | grep -v 'primeagent-base' | awk '{print $1}')
-          version=$(uv tree | grep 'primeagent' | grep -v 'primeagent-base' | awk '{print $2}')
-          if [ "$name" != "primeagent-nightly" ]; then
-            echo "Name $name does not match primeagent-nightly. Exiting the workflow."
+          name=$(uv tree | grep -E '^primeagfent[[:space:]]' | awk '{print $1}')
+          version=$(uv tree | grep -E '^primeagfent[[:space:]]' | awk '{print $2}')
+          if [ "$name" != "primeagfent" ]; then
+            echo "Name $name does not match primeagfent. Exiting the workflow."
             exit 1
           fi
-          if [ "$version" != "${{ inputs.nightly_tag_main }}" ]; then
-            echo "Version $version does not match nightly tag ${{ inputs.nightly_tag_main }}. Exiting the workflow."
+          if [ "$version" != "${{ inputs.nightly_tag_release }}" ]; then
+            echo "Version $version does not match nightly tag ${{ inputs.nightly_tag_release }}. Exiting the workflow."
             exit 1
           fi
           # Strip the leading `v` from the version
@@ -244,7 +322,7 @@ jobs:
       - name: Test Primeagent Main CLI
         run: |
           uv pip install dist/*.whl
-          uv run python -m primeagent run --host localhost --port 7860 --backend-only &
+          uv run python -m primeagfent run --host localhost --port 7860 --backend-only &
           SERVER_PID=$!
           # Wait for the server to start
           timeout 120 bash -c 'until curl -f http://localhost:7860/health_check; do sleep 2; done' || (echo "Server did not start in time" && kill $SERVER_PID && exit 1)
@@ -259,13 +337,53 @@ jobs:
             echo "Server terminated successfully"
           fi
 
+      - name: Prepare Primeagent Main artifact
+        run: |
+          shopt -s nullglob
+          MAIN_WHEELS=(dist/primeagfent-*.whl)
+          if [ ${#MAIN_WHEELS[@]} -ne 1 ]; then
+            echo "Expected exactly one primeagfent wheel in dist/, found ${#MAIN_WHEELS[@]}"
+            ls -la dist/
+            exit 1
+          fi
+          rm -rf main-dist
+          mkdir -p main-dist
+          cp "${MAIN_WHEELS[0]}" main-dist/
+
+      - name: Build bundle wheels for cross-platform test
+        id: build-bundles
+        run: |
+          shopt -s nullglob
+          bundles=(src/bundles/*/pyproject.toml)
+          if [ ${#bundles[@]} -eq 0 ]; then
+            echo "No bundles found under src/bundles/*/"
+            echo "bundles-found=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          mkdir -p bundles-dist
+          BUNDLES_DIST="$PWD/bundles-dist"
+          for bundle_pyproject in "${bundles[@]}"; do
+            bundle_dir=$(dirname "$bundle_pyproject")
+            echo "Building wheel for $bundle_dir"
+            (cd "$bundle_dir" && uv build --wheel --out-dir "$BUNDLES_DIST")
+          done
+          echo "bundles-found=1" >> "$GITHUB_OUTPUT"
+          ls -la bundles-dist/
+
+      - name: Upload Bundles Artifact
+        if: steps.build-bundles.outputs.bundles-found == '1'
+        uses: actions/upload-artifact@v6
+        with:
+          name: dist-nightly-bundles
+          path: bundles-dist
+
       # PyPI publishing moved to after cross-platform testing
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dist-nightly-main
-          path: dist
+          path: main-dist
 
   test-cross-platform:
     name: Test Cross-Platform Installation
@@ -275,20 +393,23 @@ jobs:
       base-artifact-name: "dist-nightly-base"
       main-artifact-name: "dist-nightly-main"
       wfx-artifact-name: "dist-nightly-wfx"
+      sdk-artifact-name: "dist-nightly-sdk"
+      bundles-artifact-name: "dist-nightly-bundles"
+      pre_release: true
 
   publish-nightly-wfx:
     name: Publish WFX Nightly to PyPI
-    needs: [build-nightly-wfx, test-cross-platform]
+    needs: [build-nightly-wfx, test-cross-platform, publish-nightly-sdk]
     if: ${{ inputs.build_wfx }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out the code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.nightly_tag_main }}
+          ref: ${{ inputs.nightly_tag_release }}
           persist-credentials: true
       - name: Download WFX artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: dist-nightly-wfx
           path: src/wfx/dist
@@ -304,6 +425,34 @@ jobs:
         run: |
           make wfx_publish
 
+  publish-nightly-sdk:
+    name: Publish SDK Nightly to PyPI
+    needs: [build-nightly-wfx, test-cross-platform]
+    if: ${{ inputs.build_wfx }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.nightly_tag_release }}
+          persist-credentials: true
+      - name: Download primeagfent-sdk artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: dist-nightly-sdk
+          path: src/sdk/dist
+      - name: Setup Environment
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: false
+          python-version: "3.13"
+      - name: Publish SDK to PyPI
+        env:
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          make sdk_publish
+
   publish-nightly-base:
     name: Publish Primeagent Base Nightly to PyPI
     needs: [build-nightly-base, test-cross-platform, publish-nightly-wfx]
@@ -311,12 +460,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.nightly_tag_main }}
+          ref: ${{ inputs.nightly_tag_release }}
           persist-credentials: true
       - name: Download base artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: dist-nightly-base
           path: src/backend/base/dist
@@ -333,18 +482,98 @@ jobs:
         run: |
           make publish base=true
 
-  publish-nightly-main:
-    name: Publish Primeagent Main Nightly to PyPI
+  check-nightly-main-pypi-dependencies:
+    name: Check Main Nightly PyPI Dependencies
     needs: [build-nightly-main, test-cross-platform, publish-nightly-base]
+    if: ${{ always() && needs.build-nightly-main.result == 'success' && needs.test-cross-platform.result == 'success' && needs.publish-nightly-base.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.nightly_tag_main }}
+          ref: ${{ inputs.nightly_tag_release }}
+          persist-credentials: true
+      - name: Setup Environment
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: false
+          python-version: "3.13"
+      - name: Check direct bundle dependencies on PyPI
+        run: |
+          uv run --with packaging --no-project python - <<'PY'
+          import json
+          import sys
+          import tomllib
+          import urllib.error
+          import urllib.request
+          from pathlib import Path
+
+          from packaging.requirements import Requirement
+          from packaging.utils import canonicalize_name
+          from packaging.version import InvalidVersion, Version
+
+          data = tomllib.loads(Path("pyproject.toml").read_text())
+          requirements = []
+          for dependency in data["project"].get("dependencies", []):
+            requirement = Requirement(dependency)
+            name = canonicalize_name(requirement.name)
+            if name.startswith("wfx-"):
+              requirements.append(requirement)
+
+          if not requirements:
+            print("No direct wfx-* dependencies found.")
+            sys.exit(0)
+
+          missing = []
+          unsatisfied = []
+          for requirement in requirements:
+            name = canonicalize_name(requirement.name)
+            url = f"https://pypi.org/pypi/{name}/json"
+            try:
+              with urllib.request.urlopen(url, timeout=30) as response:
+                project = json.load(response)
+            except urllib.error.HTTPError as exc:
+              if exc.code == 404:
+                missing.append(name)
+                continue
+              raise
+
+            matching_versions = []
+            for version_text in project.get("releases", {}):
+              try:
+                version = Version(version_text)
+              except InvalidVersion:
+                continue
+              if version in requirement.specifier:
+                matching_versions.append(version)
+
+            if not matching_versions:
+              unsatisfied.append(f"{name}{requirement.specifier}")
+            else:
+              latest = max(matching_versions)
+              print(f"{name}{requirement.specifier}: available, latest matching {latest}")
+
+          if missing or unsatisfied:
+            if missing:
+              print("Missing PyPI projects: " + ", ".join(missing), file=sys.stderr)
+            if unsatisfied:
+              print("No published version satisfies: " + ", ".join(unsatisfied), file=sys.stderr)
+            sys.exit(1)
+          PY
+
+  publish-nightly-main:
+    name: Publish Primeagent Main Nightly to PyPI
+    needs: [build-nightly-main, test-cross-platform, publish-nightly-base, check-nightly-main-pypi-dependencies]
+    if: ${{ always() && needs.build-nightly-main.result == 'success' && needs.test-cross-platform.result == 'success' && needs.publish-nightly-base.result == 'success' && needs.check-nightly-main-pypi-dependencies.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.nightly_tag_release }}
           persist-credentials: true
       - name: Download main artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: dist-nightly-main
           path: dist
@@ -366,7 +595,7 @@ jobs:
     needs: [build-nightly-base, build-nightly-main]
     uses: ./.github/workflows/docker-nightly-build.yml
     with:
-      ref: ${{ inputs.nightly_tag_main }}
+      ref: ${{ inputs.nightly_tag_release }}
       release_type: nightly-base
       push_to_registry: ${{ inputs.push_to_registry }}
     secrets: inherit
@@ -377,30 +606,30 @@ jobs:
     needs: [build-nightly-main, call_docker_build_base]
     uses: ./.github/workflows/docker-nightly-build.yml
     with:
-      ref: ${{ inputs.nightly_tag_main }}
+      ref: ${{ inputs.nightly_tag_release }}
       release_type: nightly-main
       push_to_registry: ${{ inputs.push_to_registry }}
     secrets: inherit
 
   # TODO: Uncomment this when our runner can fit the builds that contain pytorch (and other large dependencies)
   # call_docker_build_main_all:
-  #   name: Call Docker Build Workflow for primeagent-all
+  #   name: Call Docker Build Workflow for primeagfent-all
   #   if: always() && ${{ inputs.build_docker_main == 'true' }}
   #   needs: [build-nightly-main]
   #   uses: ./.github/workflows/docker-nightly-build.yml
   #   with:
-  #     ref: ${{ inputs.nightly_tag_main }}
+  #     ref: ${{ inputs.nightly_tag_release }}
   #     release_type: nightly-main-all
-  #     main_version: ${{ inputs.nightly_tag_main }}
+  #     main_version: ${{ inputs.nightly_tag_release }}
   #   secrets: inherit
 
-  call_docker_build_main_ep:
-    name: Call Docker Build Workflow for Primeagent with Entrypoint
-    if: ${{ always() && inputs.build_docker_ep }}
-    needs: [build-nightly-main, call_docker_build_main]
-    uses: ./.github/workflows/docker-build-v2.yml
-    with:
-      ref: ${{ inputs.nightly_tag_main }}
-      release_type: main-ep
-      push_to_registry: ${{ inputs.push_to_registry }}
-    secrets: inherit
+  # call_docker_build_main_ep:
+  #   name: Call Docker Build Workflow for Primeagent with Entrypoint
+  #   if: ${{ always() && inputs.build_docker_ep }}
+  #   needs: [build-nightly-main, call_docker_build_main]
+  #   uses: ./.github/workflows/docker-build-v2.yml
+  #   with:
+  #     ref: ${{ inputs.nightly_tag_release }}
+  #     release_type: main-ep
+  #     push_to_registry: ${{ inputs.push_to_registry }}
+  #   secrets: inherit

@@ -51,12 +51,12 @@ jobs:
           - arch: amd64
             runner: [Primeagent-runner]
           - arch: arm64
-            runner: [self-hosted, linux, ARM64, khulnasoft-arm64-40gb]
+            runner:
+              [self-hosted, linux, ARM64, khulnasoft-arm64-40gb-ephemeral]
     runs-on: ${{ matrix.runner }}
     steps:
-
       - name: Check out the code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref }}
 
@@ -72,7 +72,11 @@ jobs:
         id: version
         run: |
           echo "Extracting base version from pyproject.toml"
-          version=$(uv tree 2>/dev/null | grep '^primeagent-base' | cut -d' ' -f2 | sed 's/^v//')
+          # Anchor to the primeagfent-base workspace-root line (same pattern as the
+          # primeagfent extraction below): the unanchored grep used to match a
+          # dependency line whose version sat in field 3, but uv tree now lists
+          # the primeagfent-base root line first, which has no third field.
+          version=$(uv tree 2>/dev/null | grep -E '^primeagfent-base[[:space:]]' | cut -d' ' -f2 | sed 's/^v//' | head -n 1)
 
 
           # Verify nightly tag format
@@ -88,8 +92,8 @@ jobs:
         id: tags
         run: |
           version="${{ steps.version.outputs.version }}"
-          echo "docker_tags=khulnasoft/primeagent-nightly:base-${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
-          echo "ghcr_tags=ghcr.io/khulnasoft/primeagent-nightly:base-${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          echo "docker_tags=khulnasoft/primeagfent-nightly:base-${version}-${{ matrix.arch }},khulnasoft/primeagfent:base-${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          echo "ghcr_tags=ghcr.io/khulnasoft/primeagfent-nightly:base-${version}-${{ matrix.arch }},ghcr.io/khulnasoft/primeagfent:base-${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
 
       - name: Docker cleanup
         run: |
@@ -117,6 +121,7 @@ jobs:
         with:
           context: .
           push: ${{ inputs.push_to_registry }}
+          pull: true
           file: ./docker/build_and_push_base.Dockerfile
           tags: ${{ steps.tags.outputs.docker_tags }}
           platforms: linux/${{ matrix.arch }}
@@ -129,6 +134,7 @@ jobs:
         with:
           context: .
           push: ${{ inputs.push_to_registry }}
+          pull: true
           file: ./docker/build_and_push_base.Dockerfile
           tags: ${{ steps.tags.outputs.ghcr_tags }}
           platforms: linux/${{ matrix.arch }}
@@ -145,12 +151,12 @@ jobs:
           - arch: amd64
             runner: [Primeagent-runner]
           - arch: arm64
-            runner: [self-hosted, linux, ARM64, khulnasoft-arm64-40gb]
+            runner:
+              [self-hosted, linux, ARM64, khulnasoft-arm64-40gb-ephemeral]
     runs-on: ${{ matrix.runner }}
     steps:
-
       - name: Check out the code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref }}
 
@@ -166,7 +172,7 @@ jobs:
         id: version
         run: |
           echo "Extracting main version from pyproject.toml"
-          version=$(uv tree 2>/dev/null | grep '^primeagent' | grep -v '^primeagent-base' | cut -d' ' -f2 | sed 's/^v//')
+          version=$(uv tree 2>/dev/null | grep -E '^primeagfent(-nightly)?[[:space:]]' | cut -d' ' -f2 | sed 's/^v//')
 
           # Verify nightly tag format
           if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.dev[0-9]+$ ]]; then
@@ -181,8 +187,8 @@ jobs:
         id: tags
         run: |
           version="${{ steps.version.outputs.version }}"
-          echo "docker_tags=khulnasoft/primeagent-nightly:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
-          echo "ghcr_tags=ghcr.io/khulnasoft/primeagent-nightly:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          echo "docker_tags=khulnasoft/primeagfent-nightly:${version}-${{ matrix.arch }},khulnasoft/primeagfent:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          echo "ghcr_tags=ghcr.io/khulnasoft/primeagfent-nightly:${version}-${{ matrix.arch }},ghcr.io/khulnasoft/primeagfent:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
 
       - name: Docker cleanup
         run: |
@@ -210,6 +216,7 @@ jobs:
         with:
           context: .
           push: ${{ inputs.push_to_registry }}
+          pull: true
           file: ./docker/build_and_push.Dockerfile
           tags: ${{ steps.tags.outputs.docker_tags }}
           platforms: linux/${{ matrix.arch }}
@@ -222,6 +229,7 @@ jobs:
         with:
           context: .
           push: ${{ inputs.push_to_registry }}
+          pull: true
           file: ./docker/build_and_push.Dockerfile
           tags: ${{ steps.tags.outputs.ghcr_tags }}
           platforms: linux/${{ matrix.arch }}
@@ -238,12 +246,12 @@ jobs:
           - arch: amd64
             runner: [Primeagent-runner]
           - arch: arm64
-            runner: [self-hosted, linux, ARM64, khulnasoft-arm64-40gb]
+            runner:
+              [self-hosted, linux, ARM64, khulnasoft-arm64-40gb-ephemeral]
     runs-on: ${{ matrix.runner }}
     steps:
-
       - name: Check out the code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref }}
 
@@ -259,7 +267,7 @@ jobs:
         id: version
         run: |
           echo "Extracting main version from pyproject.toml"
-          version=$(uv tree 2>/dev/null | grep '^primeagent' | grep -v '^primeagent-base' | cut -d' ' -f2 | sed 's/^v//')
+          version=$(uv tree 2>/dev/null | grep -E '^primeagfent(-nightly)?[[:space:]]' | cut -d' ' -f2 | sed 's/^v//')
 
           # Verify nightly tag format
           if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.dev[0-9]+$ ]]; then
@@ -274,8 +282,8 @@ jobs:
         id: tags
         run: |
           version="${{ steps.version.outputs.version }}"
-          echo "docker_tags=khulnasoft/primeagent-nightly-all:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
-          echo "ghcr_tags=ghcr.io/khulnasoft/primeagent-nightly-all:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          echo "docker_tags=khulnasoft/primeagfent-nightly-all:${version}-${{ matrix.arch }},khulnasoft/primeagfent-all:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          echo "ghcr_tags=ghcr.io/khulnasoft/primeagfent-nightly-all:${version}-${{ matrix.arch }},ghcr.io/khulnasoft/primeagfent-all:${version}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
 
       - name: Docker cleanup
         run: |
@@ -303,6 +311,7 @@ jobs:
         with:
           context: .
           push: ${{ inputs.push_to_registry }}
+          pull: true
           file: ./docker/build_and_push_with_extras.Dockerfile
           tags: ${{ steps.tags.outputs.docker_tags }}
           platforms: linux/${{ matrix.arch }}
@@ -315,6 +324,7 @@ jobs:
         with:
           context: .
           push: ${{ inputs.push_to_registry }}
+          pull: true
           file: ./docker/build_and_push_with_extras.Dockerfile
           tags: ${{ steps.tags.outputs.ghcr_tags }}
           platforms: linux/${{ matrix.arch }}
@@ -337,7 +347,7 @@ jobs:
           prune-cache: false
 
       - name: Check out the code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref }}
 
@@ -345,9 +355,9 @@ jobs:
         id: version
         run: |
           if [[ "${{ inputs.release_type }}" == "nightly-base" ]]; then
-            version=$(uv tree 2>/dev/null | grep '^primeagent-base' | cut -d' ' -f2 | sed 's/^v//')
+            version=$(uv tree 2>/dev/null | grep -E '^primeagfent-base[[:space:]]' | cut -d' ' -f2 | sed 's/^v//' | head -n 1)
           else
-            version=$(uv tree 2>/dev/null | grep '^primeagent' | grep -v '^primeagent-base' | cut -d' ' -f2 | sed 's/^v//')
+            version=$(uv tree 2>/dev/null | grep -E '^primeagfent(-nightly)?[[:space:]]' | cut -d' ' -f2 | sed 's/^v//')
           fi
           echo "Using version: $version"
           echo version=$version >> $GITHUB_OUTPUT
@@ -358,19 +368,28 @@ jobs:
           version="${{ steps.version.outputs.version }}"
           case "${{ inputs.release_type }}" in
             "nightly-base")
-              echo "final_tags=khulnasoft/primeagent-nightly:base-${version},khulnasoft/primeagent-nightly:base-latest,ghcr.io/khulnasoft/primeagent-nightly:base-${version},ghcr.io/khulnasoft/primeagent-nightly:base-latest" >> $GITHUB_OUTPUT
-              echo "arch_base=khulnasoft/primeagent-nightly:base-${version}" >> $GITHUB_OUTPUT
-              echo "ghcr_arch_base=ghcr.io/khulnasoft/primeagent-nightly:base-${version}" >> $GITHUB_OUTPUT
+              # Push versioned tag to canonical primeagfent repo (matches PyPI primeagfent-base .devN publish).
+              # :base-latest is only set on the -nightly repo to avoid overwriting the stable :base-latest
+              # on khulnasoft/primeagfent with a pre-release image.
+              echo "final_tags=khulnasoft/primeagfent-nightly:base-${version},khulnasoft/primeagfent-nightly:base-latest,khulnasoft/primeagfent:base-${version},ghcr.io/khulnasoft/primeagfent-nightly:base-${version},ghcr.io/khulnasoft/primeagfent-nightly:base-latest,ghcr.io/khulnasoft/primeagfent:base-${version}" >> $GITHUB_OUTPUT
+              echo "arch_base=khulnasoft/primeagfent-nightly:base-${version}" >> $GITHUB_OUTPUT
+              echo "ghcr_arch_base=ghcr.io/khulnasoft/primeagfent-nightly:base-${version}" >> $GITHUB_OUTPUT
               ;;
             "nightly-main")
-              echo "final_tags=khulnasoft/primeagent-nightly:${version},khulnasoft/primeagent-nightly:latest,ghcr.io/khulnasoft/primeagent-nightly:${version},ghcr.io/khulnasoft/primeagent-nightly:latest" >> $GITHUB_OUTPUT
-              echo "arch_base=khulnasoft/primeagent-nightly:${version}" >> $GITHUB_OUTPUT
-              echo "ghcr_arch_base=ghcr.io/khulnasoft/primeagent-nightly:${version}" >> $GITHUB_OUTPUT
+              # Push versioned tag to canonical primeagfent repo (matches PyPI primeagfent .devN publish).
+              # :latest is only set on the -nightly repo to avoid overwriting the stable :latest
+              # on khulnasoft/primeagfent with a pre-release image.
+              echo "final_tags=khulnasoft/primeagfent-nightly:${version},khulnasoft/primeagfent-nightly:latest,khulnasoft/primeagfent:${version},ghcr.io/khulnasoft/primeagfent-nightly:${version},ghcr.io/khulnasoft/primeagfent-nightly:latest,ghcr.io/khulnasoft/primeagfent:${version}" >> $GITHUB_OUTPUT
+              echo "arch_base=khulnasoft/primeagfent-nightly:${version}" >> $GITHUB_OUTPUT
+              echo "ghcr_arch_base=ghcr.io/khulnasoft/primeagfent-nightly:${version}" >> $GITHUB_OUTPUT
               ;;
             "nightly-main-all")
-              echo "final_tags=khulnasoft/primeagent-nightly-all:${version},khulnasoft/primeagent-nightly-all:latest,ghcr.io/khulnasoft/primeagent-nightly-all:${version},ghcr.io/khulnasoft/primeagent-nightly-all:latest" >> $GITHUB_OUTPUT
-              echo "arch_base=khulnasoft/primeagent-nightly-all:${version}" >> $GITHUB_OUTPUT
-              echo "ghcr_arch_base=ghcr.io/khulnasoft/primeagent-nightly-all:${version}" >> $GITHUB_OUTPUT
+              # Push versioned tag to canonical primeagfent-all repo (matches PyPI publish).
+              # :latest is only set on the -nightly-all repo to avoid overwriting the stable :latest
+              # on khulnasoft/primeagfent-all with a pre-release image.
+              echo "final_tags=khulnasoft/primeagfent-nightly-all:${version},khulnasoft/primeagfent-nightly-all:latest,khulnasoft/primeagfent-all:${version},ghcr.io/khulnasoft/primeagfent-nightly-all:${version},ghcr.io/khulnasoft/primeagfent-nightly-all:latest,ghcr.io/khulnasoft/primeagfent-all:${version}" >> $GITHUB_OUTPUT
+              echo "arch_base=khulnasoft/primeagfent-nightly-all:${version}" >> $GITHUB_OUTPUT
+              echo "ghcr_arch_base=ghcr.io/khulnasoft/primeagfent-nightly-all:${version}" >> $GITHUB_OUTPUT
               ;;
             *)
               echo "Error: Invalid release_type: ${{ inputs.release_type }}" >&2

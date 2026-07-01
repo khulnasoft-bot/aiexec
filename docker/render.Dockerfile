@@ -1,3 +1,3 @@
-FROM khulnasoft/primeagent:latest
+FROM khulnasoft/primeagfent:latest
 
-ENTRYPOINT ["python", "-m", "primeagent", "run"]
+ENTRYPOINT ["python", "-m", "primeagfent", "run"]

@@ -4,8 +4,6 @@ import sys
 from pathlib import Path
 
 from update_lf_base_dependency import update_wfx_dep_in_base
-from update_pyproject_name import update_pyproject_name
-from update_pyproject_name import update_uv_dep as update_name_uv_dep
 from update_pyproject_version import update_pyproject_version
 from update_uv_dependency import update_uv_dep as update_version_uv_dep
 
@@ -16,6 +14,10 @@ sys.path.append(str(current_dir))
 
 def main():
     """Universal update script that handles both base and main updates in a single run.
+
+    The packages keep their CANONICAL names (``primeagfent``, ``primeagfent-base``) -- they are NOT
+    renamed to ``*-nightly``. This script only sets the nightly ``.devN`` versions and re-pins the
+    inter-package dependencies to exact canonical dev versions. See ``src/bundles/NIGHTLY.md``.
 
     Usage:
     update_pyproject_combined.py main <main_tag> <base_tag> <wfx_tag>
@@ -36,20 +38,22 @@ def main():
     base_tag = sys.argv[3]
     wfx_tag = sys.argv[4]
 
-    # First handle base package updates
-    update_pyproject_name("src/backend/base/pyproject.toml", "primeagent-base-nightly")
-    update_name_uv_dep("pyproject.toml", "primeagent-base-nightly")
+    # Lockstep invariant: primeagfent-base's published dev version (set here from `base_tag`) and
+    # primeagfent's exact `==` pin on it (set below from the same `base_tag`) MUST come from the same
+    # value, so the latest nightly `primeagfent` always pins a base version published in the same run.
+    # `pypi_nightly_tag.py` makes the main and base tags identical; keep both writes sourced from
+    # `base_tag` or the pin can reference a version that was never published.
+
+    # First handle base package updates (canonical name kept).
     update_pyproject_version("src/backend/base/pyproject.toml", base_tag)
 
-    # Update WFX dependency in primeagent-base
+    # Update WFX dependency in primeagfent-base (exact canonical dev pin).
     wfx_version = wfx_tag.lstrip("v")
     update_wfx_dep_in_base("src/backend/base/pyproject.toml", wfx_version)
 
-    # Then handle main package updates
-    update_pyproject_name("pyproject.toml", "primeagent-nightly")
-    update_name_uv_dep("pyproject.toml", "primeagent-nightly")
+    # Then handle main package updates (canonical name kept).
     update_pyproject_version("pyproject.toml", main_tag)
-    # Update dependency version (strip 'v' prefix if present)
+    # Update primeagfent-base dependency version (strip 'v' prefix if present).
     base_version = base_tag.lstrip("v")
     update_version_uv_dep(base_version)
 

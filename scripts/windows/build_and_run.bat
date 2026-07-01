@@ -57,21 +57,21 @@ if not exist "src\frontend\build" (
     set BUILD_DIR=src\frontend\build
 )
 
-echo Copying from %BUILD_DIR% to src\backend\base\primeagent\frontend\
+echo Copying from %BUILD_DIR% to src\backend\base\primeagfent\frontend\
 REM Create target directory if it doesn't exist
-if not exist "src\backend\base\primeagent\frontend" (
-    mkdir "src\backend\base\primeagent\frontend"
+if not exist "src\backend\base\primeagfent\frontend" (
+    mkdir "src\backend\base\primeagfent\frontend"
 )
 
 REM Remove existing files in target directory (FORCES CLEAN REPLACEMENT)
 echo Removing existing files from target directory...
-if exist "src\backend\base\primeagent\frontend\*" (
-    del /q /s "src\backend\base\primeagent\frontend\*"
-    for /d %%d in ("src\backend\base\primeagent\frontend\*") do rmdir /s /q "%%d"
+if exist "src\backend\base\primeagfent\frontend\*" (
+    del /q /s "src\backend\base\primeagfent\frontend\*"
+    for /d %%d in ("src\backend\base\primeagfent\frontend\*") do rmdir /s /q "%%d"
 )
 
 REM Copy all files from build directory
-xcopy "%BUILD_DIR%\*" "src\backend\base\primeagent\frontend\" /e /i /y
+xcopy "%BUILD_DIR%\*" "src\backend\base\primeagfent\frontend\" /e /i /y
 if errorlevel 1 (
     echo Error: Failed to copy build files
     pause
@@ -89,12 +89,12 @@ REM Change to project root directory for uv
 cd "%PROJECT_ROOT%"
 if defined USE_ENV_FILE (
     echo Using env file: .env
-    uv run --env-file ".env" primeagent run
+    uv run --env-file ".env" primeagfent run
 ) else (
-    uv run primeagent run
+    uv run primeagfent run
 )
 if errorlevel 1 (
-    echo Error: Failed to run primeagent
+    echo Error: Failed to run primeagfent
     pause
     exit /b 1
 )

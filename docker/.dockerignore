@@ -4,6 +4,6 @@ node_modules
 **/node_modules/
 dist/
 **/build/
-src/backend/primeagent/frontend
-**/primeagent-pre.db
-**/primeagent.db
+src/backend/primeagfent/frontend
+**/primeagfent-pre.db
+**/primeagfent.db

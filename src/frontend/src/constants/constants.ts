@@ -986,7 +986,7 @@ export const TWITTER_URL = "https://x.com/primeagent_ai";
 export const DOCS_URL = "https://primeagent-docs.khulnasoft.com";
 export const DATASTAX_DOCS_URL =
   "https://docs.datastax.com/en/primeagent/index.html";
-export const DESKTOP_URL = "https://www.primeagent.org/desktop";
+export const DESKTOP_URL = "https://www.prime.khulnasoft.com/desktop";
 export const BUG_REPORT_URL =
   "https://github.com/khulnasoft/primeagent/issues";
 

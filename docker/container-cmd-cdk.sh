@@ -1,5 +1,5 @@
-export PRIMEAGENT_DATABASE_URL="mysql+pymysql://${username}:${password}@${host}:3306/${dbname}"
-# echo $PRIMEAGENT_DATABASE_URL
-uvicorn --factory primeagent.main:create_app --host 0.0.0.0 --port 7860 --reload --log-level debug --loop asyncio
+export PRIMEAGFENT_DATABASE_URL="mysql+pymysql://${username}:${password}@${host}:3306/${dbname}"
+# echo $PRIMEAGFENT_DATABASE_URL
+uvicorn --factory primeagfent.main:create_app --host 0.0.0.0 --port 7860 --reload --log-level debug --loop asyncio
 
-# python -m primeagent run --host 0.0.0.0 --port 7860
+# python -m primeagfent run --host 0.0.0.0 --port 7860

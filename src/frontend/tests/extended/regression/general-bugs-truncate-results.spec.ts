@@ -31,7 +31,7 @@ test.skip(
 
     await page
       .getByTestId("inputlist_str_urls_1")
-      .fill("https://www.primeagent.org/");
+      .fill("https://www.prime.khulnasoft.com/");
     await adjustScreenView(page);
 
     await page.getByTestId("default_slider_display_value").click();

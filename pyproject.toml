@@ -190,7 +190,7 @@ required-environments = [
 override-dependencies = [
     # temporary force a newer python-pptx
     "python-pptx>=1.0.2",
-    "onnxruntime==1.15.0"
+    "onnxruntime>=1.18.0,<2.0.0"
 ]
 
 [tool.uv.workspace]

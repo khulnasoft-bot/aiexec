@@ -42,7 +42,7 @@ jest.mock("@/constants/constants", () => ({
   __esModule: true,
   DATASTAX_DOCS_URL: "https://docs.datastax.com",
   DOCS_URL: "https://primeagent-docs.khulnasoft.com",
-  DESKTOP_URL: "https://desktop.primeagent.org",
+  DESKTOP_URL: "https://desktop.prime.khulnasoft.com",
 }));
 
 jest.mock("@/customization/feature-flags", () => ({
@@ -111,7 +111,7 @@ describe("HelpDropdown", () => {
       screen.getByTestId("canvas_controls_dropdown_get_primeagent_desktop"),
     );
     expect(window.open).toHaveBeenCalledWith(
-      "https://desktop.primeagent.org",
+      "https://desktop.prime.khulnasoft.com",
       "_blank",
     );
   });

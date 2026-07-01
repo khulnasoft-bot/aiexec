@@ -1,9 +1,11 @@
 // @ts-check
 // Note: type annotations allow type checking and IDEs autocompletion
 
+const path = require("path");
 const lightCodeTheme = require("prism-react-renderer/themes/github");
 const darkCodeTheme = require("prism-react-renderer/themes/dracula");
 const { remarkCodeHike } = require("@code-hike/mdx");
+const rehypeWbrUnderscore = require("./src/plugins/rehypeWbrUnderscore");
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -13,15 +15,19 @@ const config = {
   tagline:
     "Primeagent is a low-code app builder for RAG and multi-agent AI applications.",
   favicon: "img/favicon.ico",
-  url: "https://primeagent-docs.khulnasoft.com",
+  url: "https://docs.primeagfent.org",
   baseUrl: process.env.BASE_URL ? process.env.BASE_URL : "/",
   onBrokenLinks: "throw",
-  onBrokenMarkdownLinks: "warn",
   onBrokenAnchors: "warn",
   organizationName: "khulnasoft",
-  projectName: "primeagent",
+  projectName: "primeagfent",
   trailingSlash: false,
   staticDirectories: ["static"],
+  markdown: {
+    hooks: {
+      onBrokenMarkdownLinks: "warn",
+    },
+  },
   i18n: {
     defaultLocale: "en",
     locales: ["en"],
@@ -31,47 +37,66 @@ const config = {
       tagName: "link",
       attributes: {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Sora:wght@550;600&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&family=Sora:wght@550;600&display=swap",
       },
     },
     ...(isProduction
       ? [
-          // Ketch consent management script
+          // Google Consent Mode - Set defaults before Google tags load
           {
             tagName: "script",
             attributes: {},
-            innerHTML: `!function(){window.semaphore=window.semaphore||[],window.ketch=function(){window.semaphore.push(arguments)};var e=document.createElement("script");e.type="text/javascript",e.src="https://global.ketchcdn.com/web/v3/config/datastax/primeagent_org_web/boot.js",e.defer=e.async=!0,document.getElementsByTagName("head")[0].appendChild(e)}();`,
+            innerHTML: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+
+              // Set default consent to denied
+              gtag('consent', 'default', {
+                'ad_storage': 'denied',
+                'ad_user_data': 'denied',
+                'ad_personalization': 'denied',
+                'analytics_storage': 'denied'
+              });
+            `,
           },
-          // Ketch jurisdiction dynamic link and GA4 consent tracking
+          // TrustArc Consent Update Listener
           {
             tagName: "script",
-            attributes: {
-              defer: "true",
-            },
+            attributes: {},
             innerHTML: `
-          ;(function () {
-            const onKetchConsentGtagTrack = (consent) => {
-              if (window.gtag &&
-                  consent.purposes &&
-                  'analytics' in consent.purposes &&
-                  'targeted_advertising' in consent.purposes
-              ) {
-                const analyticsString = consent.purposes.analytics === true ? 'granted' : 'denied'
-                const targetedAdsString = consent.purposes.targeted_advertising === true ? 'granted' : 'denied'
-                const gtagObject = {
-                  analytics_storage: analyticsString,
-                  ad_personalization: targetedAdsString,
-                  ad_storage: targetedAdsString,
-                  ad_user_data: targetedAdsString,
+              (function() {
+                function updateGoogleConsent() {
+                  if (typeof window.truste !== 'undefined' && window.truste.cma) {
+                    var consent = window.truste.cma.callApi('getConsent', window.location.href) || {};
+
+                    // Map TrustArc categories to Google consent types
+                    // Category 0 = Required, 1 = Functional, 2 = Advertising, 3 = Analytics
+                    var hasAdvertising = consent[2] === 1;
+                    var hasAnalytics = consent[3] === 1;
+
+                    gtag('consent', 'update', {
+                      'ad_storage': hasAdvertising ? 'granted' : 'denied',
+                      'ad_user_data': hasAdvertising ? 'granted' : 'denied',
+                      'ad_personalization': hasAdvertising ? 'granted' : 'denied',
+                      'analytics_storage': hasAnalytics ? 'granted' : 'denied'
+                    });
+                  }
                 }
-                window.gtag('consent', 'update', gtagObject)
-              }
-            }
-            if (window.ketch) {
-              window.ketch('on', 'consent', onKetchConsentGtagTrack)
-            }
-          })()
-        `,
+
+                // Listen for consent changes
+                if (window.addEventListener) {
+                  window.addEventListener('cm_data_subject_consent_changed', updateGoogleConsent);
+                  window.addEventListener('cm_consent_preferences_set', updateGoogleConsent);
+                }
+
+                // Initial check after TrustArc loads
+                if (document.readyState === 'complete') {
+                  updateGoogleConsent();
+                } else {
+                  window.addEventListener('load', updateGoogleConsent);
+                }
+              })();
+            `,
           },
         ]
       : []),
@@ -86,6 +111,26 @@ const config = {
           routeBasePath: "/", // Serve the docs at the site's root
           sidebarPath: require.resolve("./sidebars.js"), // Use sidebars.js file
           sidebarCollapsed: true,
+          // Versioning configuration
+          lastVersion: "1.10.0",
+          versions: {
+            current: {
+              label: "1.11.x (Next)",
+              path: "next",
+            },
+            "1.10.0": {
+              label: "1.10.x",
+              path: "",
+            },
+            "1.9.0": {
+              label: "1.9.x",
+              path: "1.9.0",
+            },
+            "1.8.0": {
+              label: "1.8.x",
+              path: "1.8.0",
+            },
+          },
           beforeDefaultRemarkPlugins: [
             [
               remarkCodeHike,
@@ -96,6 +141,7 @@ const config = {
               },
             ],
           ],
+          rehypePlugins: [rehypeWbrUnderscore],
         },
         sitemap: {
           // https://docusaurus.io/docs/api/plugins/@docusaurus/plugin-sitemap
@@ -103,7 +149,7 @@ const config = {
           lastmod: "datetime",
           changefreq: null,
           priority: null,
-          ignorePatterns: ["/preferences"],
+          ignorePatterns: [],
         },
         gtag: {
           trackingID: "G-SLQFLQ3KPT",
@@ -113,11 +159,6 @@ const config = {
           customCss: [
             require.resolve("@code-hike/mdx/styles.css"),
             require.resolve("./css/custom.css"),
-            require.resolve("./css/docu-notion-styles.css"),
-            require.resolve(
-              "./css/gifplayer.css"
-              //"./node_modules/react-gif-player/dist/gifplayer.css" // this gave a big red compile warning which is seaming unrelated "  Replace Autoprefixer browsers option to Browserslist config..."
-            ),
           ],
         },
       }),
@@ -135,6 +176,11 @@ const config = {
             spec: "openapi/openapi.json",
             route: "/api",
           },
+          {
+            id: "workflow",
+            spec: "openapi/primeagfent-workflows-openapi.json",
+            route: "/api/workflow",
+          },
         ],
         theme: {
           primaryColor: "#7528FC",
@@ -143,30 +189,24 @@ const config = {
     ],
   ],
   plugins: [
+    // Alias so MDX can import code from the Primeagent repo with !!raw-loader!@primeagfent/src/...
+    function primeagfentCodeImportPlugin(context) {
+      return {
+        name: "primeagfent-code-import",
+        configureWebpack() {
+          return {
+            resolve: {
+              alias: {
+                "@primeagfent": path.resolve(context.siteDir, ".."),
+              },
+            },
+          };
+        },
+      };
+    },
     ["docusaurus-node-polyfills", { excludeAliases: ["console"] }],
     "docusaurus-plugin-image-zoom",
     ["./src/plugins/segment", { segmentPublicWriteKey: process.env.SEGMENT_PUBLIC_WRITE_KEY, allowedInDev: true }],
-    ["./src/plugins/scroll-tracking", {
-      segmentPublicWriteKey: process.env.SEGMENT_PUBLIC_WRITE_KEY,
-      allowedInDev: true,
-      selectors: [
-        {
-          selector: 'h1, h2, h3, h4, h5, h6',
-          eventName: 'primeagent-docs.khulnasoft.com - Heading Viewed',
-          properties: {
-            element_type: 'heading'
-          }
-        },
-        {
-          selector: '.ch-codeblock',
-          eventName: 'primeagent-docs.khulnasoft.com - Codeblock Viewed',
-          properties: {
-            element_type: 'code',
-            language: 'helper:codeLanguage'
-          }
-        }
-      ]
-    }],
     [
       "@docusaurus/plugin-client-redirects",
       {
@@ -174,11 +214,11 @@ const config = {
           {
             to: "/",
             from: [
-              "/whats-new-a-new-chapter-primeagent",
+              "/whats-new-a-new-chapter-primeagfent",
               "/👋 Welcome-to-Primeagent",
-              "/getting-started-welcome-to-primeagent",
+              "/getting-started-welcome-to-primeagfent",
               "/guides-new-to-llms",
-              "/about-primeagent",
+              "/about-primeagfent",
             ],
           },
           {
@@ -204,7 +244,18 @@ const config = {
           },
           {
             to: "/concepts-components",
-            from: ["/components", "/components-overview"],
+            from: [
+              "/components",
+              "/components-overview",
+              "/components-processing",
+              "/components-data",
+              "/components-files",
+              "/components-logic",
+              "/components-tools",
+              "/components-io",
+              "/components-helpers",
+              "/components-memories",
+            ],
           },
           {
             to: "/configuration-global-variables",
@@ -313,13 +364,13 @@ const config = {
           {
             to: "/bundles-google",
             from: [
-              "/integrations-setup-google-oauth-primeagent",
+              "/integrations-setup-google-oauth-primeagfent",
               "/integrations-google-big-query",
             ],
           },
           {
             to: "/bundles-vertexai",
-            from: "/integrations-setup-google-cloud-vertex-ai-primeagent",
+            from: "/integrations-setup-google-cloud-vertex-ai-primeagfent",
           },
           {
             to: "/develop-application",
@@ -328,10 +379,6 @@ const config = {
           {
             to: "/data-types",
             from: "/concepts-objects",
-          },
-          {
-            to: "/components-helpers",
-            from: "/components-memories",
           },
           {
             to: "/bundles-apify",
@@ -369,7 +416,14 @@ const config = {
               "/integrations-nvidia-g-assist",
               "/integrations-nvidia-system-assist",
             ]
-          }
+          },
+          {
+            to: "/legacy-core-components",
+            from: [
+              "/directory",
+              "/text-input-and-output",
+            ]
+          },
           // add more redirects like this
           // {
           //   to: '/docs/anotherpage',
@@ -391,35 +445,50 @@ const config = {
       };
     },
   ],
+  clientModules: [require.resolve("./src/clientModules/tocProgress.js")],
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
       navbar: {
-        hideOnScroll: true,
+        hideOnScroll: false,
         logo: {
           alt: "Primeagent",
           src: "img/lf-docs-light.svg",
           srcDark: "img/lf-docs-dark.svg",
         },
         items: [
+          {
+            type: 'docsVersionDropdown',
+            position: 'left',
+          },
           // right
           {
             position: "right",
-            href: "https://github.com/khulnasoft/primeagent",
+            href: "https://github.com/khulnasoft/primeagfent",
             className: "header-github-link",
             target: "_blank",
             rel: null,
-            'data-event': 'primeagent-docs.khulnasoft.com - Social Clicked',
-            'data-platform': 'github'
+            "aria-label": "GitHub",
+            'data-event': 'UI Interaction',
+            'data-action': 'clicked',
+            'data-channel': 'docs',
+            'data-element-id': 'social-github',
+            'data-namespace': 'header',
+            'data-platform-title': 'Primeagent'
           },
           {
             position: "right",
-            href: "https://twitter.com/primeagent_ai",
+            href: "https://twitter.com/primeagfent_ai",
             className: "header-twitter-link",
             target: "_blank",
             rel: null,
-            'data-event': 'primeagent-docs.khulnasoft.com - Social Clicked',
-            'data-platform': 'x'
+            "aria-label": "Twitter",
+            'data-event': 'UI Interaction',
+            'data-action': 'clicked',
+            'data-channel': 'docs',
+            'data-element-id': 'social-twitter',
+            'data-namespace': 'header',
+            'data-platform-title': 'Primeagent'
           },
           {
             position: "right",
@@ -427,8 +496,13 @@ const config = {
             className: "header-discord-link",
             target: "_blank",
             rel: null,
-            'data-event': 'primeagent-docs.khulnasoft.com - Social Clicked',
-            'data-platform': 'discord'
+            "aria-label": "Discord",
+            'data-event': 'UI Interaction',
+            'data-action': 'clicked',
+            'data-channel': 'docs',
+            'data-element-id': 'social-discord',
+            'data-namespace': 'header',
+            'data-platform-title': 'Primeagent'
           },
         ],
       },
@@ -453,7 +527,7 @@ const config = {
       docs: {
         sidebar: {
           hideable: false,
-          autoCollapseCategories: true,
+          autoCollapseCategories: false,
         },
       },
       footer: {
@@ -464,7 +538,7 @@ const config = {
               {
                 html: `<div class="footer-links">
                   <span>© ${new Date().getFullYear()} Primeagent</span>
-                  <span id="preferenceCenterContainer"> ·&nbsp; <a href="https://primeagent.khulnasoft.com/preferences">Manage Privacy Choices</a></span>
+                  <span id="preferenceCenterContainer"> ·&nbsp; <a href="#" onclick="if(typeof window !== 'undefined' && window.truste && window.truste.eu && window.truste.eu.clickListener) { window.truste.eu.clickListener(); } return false;" style="cursor: pointer;">Manage Privacy Choices</a></span>
                   </div>`,
               },
             ],
@@ -475,7 +549,7 @@ const config = {
         appId: "UZK6BDPCVY",
         // public key, safe to commit
         apiKey: "adbd7686dceb1cd510d5ce20d04bf74c",
-        indexName: "primeagent",
+        indexName: "primeagfent",
         contextualSearch: true,
         searchParameters: {},
         searchPagePath: "search",
