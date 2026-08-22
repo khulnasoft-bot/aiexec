@@ -3,128 +3,124 @@ import { adjustScreenView } from "../../utils/adjust-screen-view";
 import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
 import { zoomOut } from "../../utils/zoom-out";
 
-test(
-  "should create edge between components",
-  { tag: ["@release", "@workspace"] },
-  async ({ page }) => {
-    await awaitBootstrapTest(page);
+test("should create edge between components", {
+  tag: ["@release", "@workspace"],
+}, async ({ page }) => {
+  await awaitBootstrapTest(page);
 
-    await page.getByTestId("blank-flow").click();
+  await page.getByTestId("blank-flow").click();
 
-    //first component
+  //first component
 
-    await page.getByTestId("sidebar-search-input").click();
-    await page.getByTestId("sidebar-search-input").fill("search api");
-    await page.waitForSelector('[data-testid="searchapiSearchApi"]', {
-      timeout: 10000,
+  await page.getByTestId("sidebar-search-input").click();
+  await page.getByTestId("sidebar-search-input").fill("search api");
+  await page.waitForSelector('[data-testid="searchapiSearchApi"]', {
+    timeout: 10000,
+  });
+
+  await zoomOut(page, 3);
+
+  await page
+    .getByTestId("searchapiSearchApi")
+    .dragTo(page.locator('//*[@id="react-flow-id"]'), {
+      targetPosition: { x: 100, y: 100 },
     });
 
-    await zoomOut(page, 3);
-
-    await page
-      .getByTestId("searchapiSearchApi")
-      .dragTo(page.locator('//*[@id="react-flow-id"]'), {
-        targetPosition: { x: 100, y: 100 },
-      });
-
-    await page.getByTestId("sidebar-search-input").click();
-    await page.getByTestId("sidebar-search-input").fill("tool calling agent");
-    await page.waitForSelector(
-      '[data-testid="langchain_utilitiesTool Calling Agent"]',
-      {
-        timeout: 10000,
-      },
-    );
-
-    await page
-      .getByTestId("langchain_utilitiesTool Calling Agent")
-      .dragTo(page.locator('//*[@id="react-flow-id"]'), {
-        targetPosition: { x: 300, y: 300 },
-      });
-
-    await adjustScreenView(page);
-
-    await page.getByTestId("title-SearchApi").first().click();
-    await page.getByTestId("tool-mode-button").click();
-
-    //connection
-    const searchApiOutput = await page
-      .getByTestId("handle-searchcomponent-shownode-toolset-right")
-      .first();
-
-    await searchApiOutput.hover();
-    await page.mouse.down();
-    const toolCallingAgentInput = await page
-      .getByTestId("handle-toolcallingagent-shownode-tools-left")
-      .nth(0);
-    await toolCallingAgentInput.hover();
-    await page.mouse.up();
-
-    await expect(page.locator(".react-flow__edge-interaction")).toHaveCount(2);
-  },
-);
-
-test(
-  "should delete edge on context menu delete click",
-  { tag: ["@release", "@workspace"] },
-  async ({ page }) => {
-    await awaitBootstrapTest(page);
-
-    await page.getByTestId("blank-flow").click();
-
-    await page.getByTestId("sidebar-search-input").click();
-    await page.getByTestId("sidebar-search-input").fill("search api");
-    await page.waitForSelector('[data-testid="searchapiSearchApi"]', {
+  await page.getByTestId("sidebar-search-input").click();
+  await page.getByTestId("sidebar-search-input").fill("tool calling agent");
+  await page.waitForSelector(
+    '[data-testid="langchain_utilitiesTool Calling Agent"]',
+    {
       timeout: 10000,
+    },
+  );
+
+  await page
+    .getByTestId("langchain_utilitiesTool Calling Agent")
+    .dragTo(page.locator('//*[@id="react-flow-id"]'), {
+      targetPosition: { x: 300, y: 300 },
     });
 
-    await zoomOut(page, 3);
+  await adjustScreenView(page);
 
-    await page
-      .getByTestId("searchapiSearchApi")
-      .dragTo(page.locator('//*[@id="react-flow-id"]'), {
-        targetPosition: { x: 100, y: 100 },
-      });
+  await page.getByTestId("title-SearchApi").first().click();
+  await page.getByTestId("tool-mode-button").click();
 
-    await page.getByTestId("sidebar-search-input").click();
-    await page.getByTestId("sidebar-search-input").fill("tool calling agent");
-    await page.waitForSelector(
-      '[data-testid="langchain_utilitiesTool Calling Agent"]',
-      {
-        timeout: 10000,
-      },
-    );
+  //connection
+  const searchApiOutput = await page
+    .getByTestId("handle-searchcomponent-shownode-toolset-right")
+    .first();
 
-    await page
-      .getByTestId("langchain_utilitiesTool Calling Agent")
-      .dragTo(page.locator('//*[@id="react-flow-id"]'), {
-        targetPosition: { x: 400, y: 300 },
-      });
+  await searchApiOutput.hover();
+  await page.mouse.down();
+  const toolCallingAgentInput = await page
+    .getByTestId("handle-toolcallingagent-shownode-tools-left")
+    .nth(0);
+  await toolCallingAgentInput.hover();
+  await page.mouse.up();
 
-    await adjustScreenView(page);
+  await expect(page.locator(".react-flow__edge-interaction")).toHaveCount(2);
+});
 
-    await page.getByTestId("title-SearchApi").first().click();
-    await page.getByTestId("tool-mode-button").click();
+test("should delete edge on context menu delete click", {
+  tag: ["@release", "@workspace"],
+}, async ({ page }) => {
+  await awaitBootstrapTest(page);
 
-    //connection
-    const searchApiOutput = page
-      .getByTestId("handle-searchcomponent-shownode-toolset-right")
-      .first();
+  await page.getByTestId("blank-flow").click();
 
-    await searchApiOutput.hover();
-    await page.mouse.down();
-    const toolCallingAgentInput = page
-      .getByTestId("handle-toolcallingagent-shownode-tools-left")
-      .nth(0);
-    await toolCallingAgentInput.hover();
-    await page.mouse.up();
+  await page.getByTestId("sidebar-search-input").click();
+  await page.getByTestId("sidebar-search-input").fill("search api");
+  await page.waitForSelector('[data-testid="searchapiSearchApi"]', {
+    timeout: 10000,
+  });
 
-    await page
-      .getByTestId("edge-context-menu-trigger")
-      .click({ button: "right" });
-    await page.getByTestId("context-menu-item-destructive").click();
+  await zoomOut(page, 3);
 
-    const edgeContextMenu = page.getByTestId("edge-context-menu-trigger");
-    await expect(edgeContextMenu).toHaveCount(0);
-  },
-);
+  await page
+    .getByTestId("searchapiSearchApi")
+    .dragTo(page.locator('//*[@id="react-flow-id"]'), {
+      targetPosition: { x: 100, y: 100 },
+    });
+
+  await page.getByTestId("sidebar-search-input").click();
+  await page.getByTestId("sidebar-search-input").fill("tool calling agent");
+  await page.waitForSelector(
+    '[data-testid="langchain_utilitiesTool Calling Agent"]',
+    {
+      timeout: 10000,
+    },
+  );
+
+  await page
+    .getByTestId("langchain_utilitiesTool Calling Agent")
+    .dragTo(page.locator('//*[@id="react-flow-id"]'), {
+      targetPosition: { x: 400, y: 300 },
+    });
+
+  await adjustScreenView(page);
+
+  await page.getByTestId("title-SearchApi").first().click();
+  await page.getByTestId("tool-mode-button").click();
+
+  //connection
+  const searchApiOutput = page
+    .getByTestId("handle-searchcomponent-shownode-toolset-right")
+    .first();
+
+  await searchApiOutput.hover();
+  await page.mouse.down();
+  const toolCallingAgentInput = page
+    .getByTestId("handle-toolcallingagent-shownode-tools-left")
+    .nth(0);
+  await toolCallingAgentInput.hover();
+  await page.mouse.up();
+
+  await page
+    .getByTestId("edge-context-menu-trigger")
+    .click({ button: "right" });
+  await page.getByTestId("context-menu-item-destructive").click();
+
+  const edgeContextMenu = page.getByTestId("edge-context-menu-trigger");
+  await expect(edgeContextMenu).toHaveCount(0);
+});

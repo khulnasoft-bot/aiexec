@@ -59,33 +59,31 @@ async function composeKorean(page: Page, input: Locator) {
   });
 }
 
-test(
-  "node input preserves IME composition",
-  { tag: ["@release", "@workspace", "@regression"] },
-  async ({ page }) => {
-    await addChromaNode(page);
+test("node input preserves IME composition", {
+  tag: ["@release", "@workspace", "@regression"],
+}, async ({ page }) => {
+  await addChromaNode(page);
 
-    const collectionNameInput = page.getByTestId(
-      "popover-anchor-input-collection_name",
-    );
+  const collectionNameInput = page.getByTestId(
+    "popover-anchor-input-collection_name",
+  );
 
-    await collectionNameInput.fill("");
-    await expect(collectionNameInput).toHaveValue("");
+  await collectionNameInput.fill("");
+  await expect(collectionNameInput).toHaveValue("");
 
-    await composeAccent(page, collectionNameInput);
+  await composeAccent(page, collectionNameInput);
 
-    await expect(collectionNameInput).toHaveValue("á");
-    await page.getByTestId("div-generic-node").click();
-    await expect(collectionNameInput).toHaveValue("á");
+  await expect(collectionNameInput).toHaveValue("á");
+  await page.getByTestId("div-generic-node").click();
+  await expect(collectionNameInput).toHaveValue("á");
 
-    await collectionNameInput.fill("");
-    await expect(collectionNameInput).toHaveValue("");
+  await collectionNameInput.fill("");
+  await expect(collectionNameInput).toHaveValue("");
 
-    await composeKorean(page, collectionNameInput);
+  await composeKorean(page, collectionNameInput);
 
-    await expect(collectionNameInput).toHaveValue("하");
+  await expect(collectionNameInput).toHaveValue("하");
 
-    await page.getByTestId("div-generic-node").click();
-    await expect(collectionNameInput).toHaveValue("하");
-  },
-);
+  await page.getByTestId("div-generic-node").click();
+  await expect(collectionNameInput).toHaveValue("하");
+});

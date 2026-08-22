@@ -1,5 +1,13 @@
 {
   "devDependencies": {
     "@types/node": "^24.7.0"
+  },
+  "dependencies": {
+    "@docusaurus/core": "^3.10.2",
+    "@docusaurus/plugin-client-redirects": "^3.10.2",
+    "@docusaurus/plugin-google-tag-manager": "^3.10.2",
+    "@docusaurus/preset-classic": "^3.10.2",
+    "baseline-browser-mapping": "^2.11.17",
+    "caniuse-lite": "^1.0.30001809"
   }
 }

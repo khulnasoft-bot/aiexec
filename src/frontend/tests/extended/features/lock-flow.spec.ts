@@ -8,113 +8,109 @@ import { skipIfMissing } from "../../utils/env/skip-if-missing";
 import { lockFlow, unlockFlow } from "../../utils/lock-flow";
 import { unselectNodes } from "../../utils/unselect-nodes";
 
-test(
-  "user must be able to lock a flow and it must be saved",
-  { tag: ["@release", "@components"] },
-  async ({ page }) => {
-    skipIfMissing.openAiKey();
-    loadDotenvIfLocal(__dirname);
-    await awaitBootstrapTest(page);
+test("user must be able to lock a flow and it must be saved", {
+  tag: ["@release", "@components"],
+}, async ({ page }) => {
+  skipIfMissing.openAiKey();
+  loadDotenvIfLocal(__dirname);
+  await awaitBootstrapTest(page);
 
-    await page.getByTestId("side_nav_options_all-templates").click();
-    await page
-      .getByRole("heading", { name: TEXTS.templateBasicPrompting })
-      .click();
+  await page.getByTestId("side_nav_options_all-templates").click();
+  await page
+    .getByRole("heading", { name: TEXTS.templateBasicPrompting })
+    .click();
 
-    await page.waitForSelector('[data-testid="canvas_controls_dropdown"]', {
-      timeout: 100000,
-      state: "visible",
-    });
-    await page.waitForTimeout(500);
+  await page.waitForSelector('[data-testid="canvas_controls_dropdown"]', {
+    timeout: 100000,
+    state: "visible",
+  });
+  await page.waitForTimeout(500);
 
-    await lockFlow(page);
+  await lockFlow(page);
 
-    await page.getByTestId("icon-ChevronLeft").click();
-    await page.waitForSelector('[data-testid="mainpage_title"]', {
-      timeout: 3000,
-    });
+  await page.getByTestId("icon-ChevronLeft").click();
+  await page.waitForSelector('[data-testid="mainpage_title"]', {
+    timeout: 3000,
+  });
 
-    await page.getByTestId("list-card").first().click();
-    await page.waitForSelector('[data-testid="canvas_controls_dropdown"]', {
-      timeout: 100000,
-      state: "visible",
-    });
-    await page.waitForTimeout(500);
+  await page.getByTestId("list-card").first().click();
+  await page.waitForSelector('[data-testid="canvas_controls_dropdown"]', {
+    timeout: 100000,
+    state: "visible",
+  });
+  await page.waitForTimeout(500);
 
-    //ensure the UI is updated
+  //ensure the UI is updated
 
-    await unlockFlow(page);
+  await unlockFlow(page);
 
-    await page.getByTestId("icon-ChevronLeft").click();
-    await page.waitForSelector('[data-testid="mainpage_title"]', {
-      timeout: 3000,
-    });
+  await page.getByTestId("icon-ChevronLeft").click();
+  await page.waitForSelector('[data-testid="mainpage_title"]', {
+    timeout: 3000,
+  });
 
-    await page.getByTestId("list-card").first().click();
+  await page.getByTestId("list-card").first().click();
 
-    await page.waitForSelector('[data-testid="canvas_controls_dropdown"]', {
-      timeout: 100000,
-      state: "visible",
-    });
-    await page.waitForTimeout(500);
+  await page.waitForSelector('[data-testid="canvas_controls_dropdown"]', {
+    timeout: 100000,
+    state: "visible",
+  });
+  await page.waitForTimeout(500);
 
-    await tryDeleteEdge(page);
-    await page.waitForTimeout(500);
+  await tryDeleteEdge(page);
+  await page.waitForTimeout(500);
 
-    // Delete edges one by one (when unlocked, should work)
-    await page.locator(".react-flow__edge").nth(0).click();
-    await page.waitForTimeout(200);
-    await page.keyboard.press("Backspace");
-    await page.waitForTimeout(300);
-    let numberOfEdges = await page.locator(".react-flow__edge").count();
-    expect(numberOfEdges).toBe(2);
+  // Delete edges one by one (when unlocked, should work)
+  await page.locator(".react-flow__edge").nth(0).click();
+  await page.waitForTimeout(200);
+  await page.keyboard.press("Backspace");
+  await page.waitForTimeout(300);
+  let numberOfEdges = await page.locator(".react-flow__edge").count();
+  expect(numberOfEdges).toBe(2);
 
-    await page.locator(".react-flow__edge").nth(0).click();
-    await page.waitForTimeout(200);
-    await page.keyboard.press("Backspace");
-    await page.waitForTimeout(300);
-    numberOfEdges = await page.locator(".react-flow__edge").count();
-    expect(numberOfEdges).toBe(1);
+  await page.locator(".react-flow__edge").nth(0).click();
+  await page.waitForTimeout(200);
+  await page.keyboard.press("Backspace");
+  await page.waitForTimeout(300);
+  numberOfEdges = await page.locator(".react-flow__edge").count();
+  expect(numberOfEdges).toBe(1);
 
-    await page.locator(".react-flow__edge").nth(0).click();
-    await page.waitForTimeout(200);
-    await page.keyboard.press("Backspace");
-    await page.waitForTimeout(300);
-    numberOfEdges = await page.locator(".react-flow__edge").count();
-    expect(numberOfEdges).toBe(0);
+  await page.locator(".react-flow__edge").nth(0).click();
+  await page.waitForTimeout(200);
+  await page.keyboard.press("Backspace");
+  await page.waitForTimeout(300);
+  numberOfEdges = await page.locator(".react-flow__edge").count();
+  expect(numberOfEdges).toBe(0);
 
-    await tryConnectNodes(page);
+  await tryConnectNodes(page);
 
-    await unselectNodes(page);
+  await unselectNodes(page);
 
-    await page.getByText(TEXTS.componentChatInput, { exact: true }).click();
+  await page.getByText(TEXTS.componentChatInput, { exact: true }).click();
 
-    await adjustScreenView(page);
+  await adjustScreenView(page);
 
-    await page.getByTestId("handle-prompt-shownode-prompt-right").click();
-    await page
-      .getByTestId("handle-languagemodelcomponent-shownode-system message-left")
-      .click();
+  await page.getByTestId("handle-prompt-shownode-prompt-right").click();
+  await page
+    .getByTestId("handle-languagemodelcomponent-shownode-system message-left")
+    .click();
 
-    await page
-      .getByTestId("handle-chatinput-shownode-chat message-right")
-      .click();
-    await page
-      .getByTestId("handle-languagemodelcomponent-shownode-input-left")
-      .click();
+  await page
+    .getByTestId("handle-chatinput-shownode-chat message-right")
+    .click();
+  await page
+    .getByTestId("handle-languagemodelcomponent-shownode-input-left")
+    .click();
 
-    await page
-      .getByTestId(
-        "handle-languagemodelcomponent-shownode-model response-right",
-      )
-      .click();
-    await page.getByTestId("handle-chatoutput-shownode-inputs-left").click();
-    await page.waitForTimeout(300);
-    numberOfEdges = await page.locator(".react-flow__edge").count();
+  await page
+    .getByTestId("handle-languagemodelcomponent-shownode-model response-right")
+    .click();
+  await page.getByTestId("handle-chatoutput-shownode-inputs-left").click();
+  await page.waitForTimeout(300);
+  numberOfEdges = await page.locator(".react-flow__edge").count();
 
-    expect(numberOfEdges).toBe(3);
-  },
-);
+  expect(numberOfEdges).toBe(3);
+});
 
 async function tryConnectNodes(page: Page) {
   await lockFlow(page);

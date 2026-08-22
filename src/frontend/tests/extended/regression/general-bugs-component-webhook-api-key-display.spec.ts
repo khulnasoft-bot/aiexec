@@ -11,136 +11,132 @@ import {
   openAdvancedOptions,
 } from "../../utils/open-advanced-options";
 
-test(
-  "user must be able to see api key in webhook component when auto login is disabled",
-  { tag: ["@release"] },
-  async ({ page }) => {
-    await page.route("**/api/v1/auto_login", (route) => {
-      route.fulfill({
-        status: 500,
-        contentType: "application/json",
-        body: JSON.stringify({
-          detail: { auto_login: false },
-        }),
-      });
+test("user must be able to see api key in webhook component when auto login is disabled", {
+  tag: ["@release"],
+}, async ({ page }) => {
+  await page.route("**/api/v1/auto_login", (route) => {
+    route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({
+        detail: { auto_login: false },
+      }),
+    });
+  });
+
+  await page.route("**/api/v1/config", (route) => {
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        type: "full",
+        webhook_auth_enable: true,
+      }),
+      headers: {
+        "content-type": "application/json",
+        ...route.request().headers(),
+      },
+    });
+  });
+
+  await loginPrimeagent(page);
+
+  await awaitBootstrapTest(page, { skipGoto: true });
+
+  await page.waitForSelector('[data-testid="blank-flow"]', {
+    timeout: 30000,
+  });
+  await page.getByTestId("blank-flow").click();
+  await page.getByTestId("sidebar-search-input").click();
+
+  await page.getByTestId("sidebar-search-input").fill("webhook");
+
+  await page.waitForSelector('[data-testid="input_outputWebhook"]', {
+    timeout: 3000,
+  });
+
+  await page
+    .getByTestId("input_outputWebhook")
+    .hover()
+    .then(async () => {
+      await page.getByTestId("add-component-button-webhook").click();
     });
 
-    await page.route("**/api/v1/config", (route) => {
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          type: "full",
-          webhook_auth_enable: true,
-        }),
-        headers: {
-          "content-type": "application/json",
-          ...route.request().headers(),
-        },
-      });
+  await adjustScreenView(page);
+
+  await page.getByTestId("title-Webhook").click();
+
+  await disableInspectPanel(page);
+
+  await openAdvancedOptions(page);
+
+  await page
+    .getByTestId("button_open_text_area_modal_str_edit_curl_advanced")
+    .click();
+
+  const curl = await page.getByTestId("text-area-modal").inputValue();
+
+  expect(curl).toContain("x-api-key");
+
+  await page.getByText(TEXTS.close, { exact: true }).last().click();
+
+  await closeAdvancedOptions(page);
+
+  await enableInspectPanel(page);
+});
+
+test("user must be able to not see api key in webhook component when auto login is enabled", {
+  tag: ["@release"],
+}, async ({ page }) => {
+  await page.route("**/api/v1/config", (route) => {
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        type: "full",
+        webhook_auth_enable: false,
+      }),
+      headers: {
+        "content-type": "application/json",
+        ...route.request().headers(),
+      },
+    });
+  });
+  await openBlankFlow(page);
+  await page.getByTestId("sidebar-search-input").click();
+
+  await page.getByTestId("sidebar-search-input").fill("webhook");
+
+  await page.waitForSelector('[data-testid="input_outputWebhook"]', {
+    timeout: 3000,
+  });
+
+  await page
+    .getByTestId("input_outputWebhook")
+    .hover()
+    .then(async () => {
+      await page.getByTestId("add-component-button-webhook").click();
     });
 
-    await loginPrimeagent(page);
+  await adjustScreenView(page);
 
-    await awaitBootstrapTest(page, { skipGoto: true });
+  await page.getByTestId("title-Webhook").click();
 
-    await page.waitForSelector('[data-testid="blank-flow"]', {
-      timeout: 30000,
-    });
-    await page.getByTestId("blank-flow").click();
-    await page.getByTestId("sidebar-search-input").click();
+  await disableInspectPanel(page);
 
-    await page.getByTestId("sidebar-search-input").fill("webhook");
+  await openAdvancedOptions(page);
 
-    await page.waitForSelector('[data-testid="input_outputWebhook"]', {
-      timeout: 3000,
-    });
+  await page
+    .getByTestId("button_open_text_area_modal_str_edit_curl_advanced")
+    .click();
 
-    await page
-      .getByTestId("input_outputWebhook")
-      .hover()
-      .then(async () => {
-        await page.getByTestId("add-component-button-webhook").click();
-      });
+  const curl = await page.getByTestId("text-area-modal").inputValue();
 
-    await adjustScreenView(page);
+  expect(curl).not.toContain("x-api-key");
 
-    await page.getByTestId("title-Webhook").click();
+  await page.getByText(TEXTS.close, { exact: true }).last().click();
 
-    await disableInspectPanel(page);
+  await closeAdvancedOptions(page);
 
-    await openAdvancedOptions(page);
-
-    await page
-      .getByTestId("button_open_text_area_modal_str_edit_curl_advanced")
-      .click();
-
-    const curl = await page.getByTestId("text-area-modal").inputValue();
-
-    expect(curl).toContain("x-api-key");
-
-    await page.getByText(TEXTS.close, { exact: true }).last().click();
-
-    await closeAdvancedOptions(page);
-
-    await enableInspectPanel(page);
-  },
-);
-
-test(
-  "user must be able to not see api key in webhook component when auto login is enabled",
-  { tag: ["@release"] },
-  async ({ page }) => {
-    await page.route("**/api/v1/config", (route) => {
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          type: "full",
-          webhook_auth_enable: false,
-        }),
-        headers: {
-          "content-type": "application/json",
-          ...route.request().headers(),
-        },
-      });
-    });
-    await openBlankFlow(page);
-    await page.getByTestId("sidebar-search-input").click();
-
-    await page.getByTestId("sidebar-search-input").fill("webhook");
-
-    await page.waitForSelector('[data-testid="input_outputWebhook"]', {
-      timeout: 3000,
-    });
-
-    await page
-      .getByTestId("input_outputWebhook")
-      .hover()
-      .then(async () => {
-        await page.getByTestId("add-component-button-webhook").click();
-      });
-
-    await adjustScreenView(page);
-
-    await page.getByTestId("title-Webhook").click();
-
-    await disableInspectPanel(page);
-
-    await openAdvancedOptions(page);
-
-    await page
-      .getByTestId("button_open_text_area_modal_str_edit_curl_advanced")
-      .click();
-
-    const curl = await page.getByTestId("text-area-modal").inputValue();
-
-    expect(curl).not.toContain("x-api-key");
-
-    await page.getByText(TEXTS.close, { exact: true }).last().click();
-
-    await closeAdvancedOptions(page);
-
-    await enableInspectPanel(page);
-  },
-);
+  await enableInspectPanel(page);
+});

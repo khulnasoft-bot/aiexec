@@ -4,70 +4,65 @@ import { awaitBootstrapTest } from "../../utils/await-bootstrap-test";
 import { TEXTS } from "../../utils/constants/texts";
 import { renameFlow } from "../../utils/rename-flow";
 
-test(
-  "CRUD folders",
-  { tag: ["@release", "@api"] },
+test("CRUD folders", { tag: ["@release", "@api"] }, async ({ page }) => {
+  await awaitBootstrapTest(page);
 
-  async ({ page }) => {
-    await awaitBootstrapTest(page);
+  await page.getByTestId("side_nav_options_all-templates").click();
+  await page
+    .getByRole("heading", { name: TEXTS.templateBasicPrompting })
+    .click();
 
-    await page.getByTestId("side_nav_options_all-templates").click();
-    await page
-      .getByRole("heading", { name: TEXTS.templateBasicPrompting })
-      .click();
+  await page.waitForSelector('[data-testid="sidebar-search-input"]', {
+    timeout: 100000,
+  });
 
-    await page.waitForSelector('[data-testid="sidebar-search-input"]', {
-      timeout: 100000,
-    });
+  await page.getByTestId("icon-ChevronLeft").first().click();
+  await expect(page.getByPlaceholder("Search flows").first()).toBeVisible();
+  await expect(page.getByText("Flows").first()).toBeVisible();
+  if (await page.getByText(TEXTS.labelComponents).first().isVisible()) {
+    await expect(page.getByText(TEXTS.labelComponents).first()).toBeVisible();
+  } else {
+    await expect(page.getByText("MCP Server").first()).toBeVisible();
+  }
+  await page.getByTestId("add-project-button").click();
+  await page
+    .locator("[data-testid='project-sidebar']")
+    .getByText(TEXTS.labelNewProject)
+    .last()
+    .isVisible();
 
-    await page.getByTestId("icon-ChevronLeft").first().click();
-    await expect(page.getByPlaceholder("Search flows").first()).toBeVisible();
-    await expect(page.getByText("Flows").first()).toBeVisible();
-    if (await page.getByText(TEXTS.labelComponents).first().isVisible()) {
-      await expect(page.getByText(TEXTS.labelComponents).first()).toBeVisible();
-    } else {
-      await expect(page.getByText("MCP Server").first()).toBeVisible();
-    }
-    await page.getByTestId("add-project-button").click();
-    await page
-      .locator("[data-testid='project-sidebar']")
-      .getByText(TEXTS.labelNewProject)
-      .last()
-      .isVisible();
+  await page
+    .locator("[data-testid='project-sidebar']")
+    .getByText(TEXTS.labelNewProject)
+    .last()
+    .dblclick();
 
-    await page
-      .locator("[data-testid='project-sidebar']")
-      .getByText(TEXTS.labelNewProject)
-      .last()
-      .dblclick();
+  const element = await page.getByTestId("input-project");
+  await element.fill("new project test name");
 
-    const element = await page.getByTestId("input-project");
-    await element.fill("new project test name");
+  await page.getByText("Starter Project").last().click({
+    force: true,
+  });
 
-    await page.getByText("Starter Project").last().click({
-      force: true,
-    });
+  await page.getByText("new project test name").last().waitFor({
+    state: "visible",
+    timeout: 30000,
+  });
 
-    await page.getByText("new project test name").last().waitFor({
-      state: "visible",
-      timeout: 30000,
-    });
+  await page.getByTestId("sidebar-nav-new project test name").last().hover();
 
-    await page.getByTestId("sidebar-nav-new project test name").last().hover();
+  await page
+    .getByTestId("more-options-button_new-project-test-name")
+    .waitFor({ state: "visible", timeout: 5000 });
 
-    await page
-      .getByTestId("more-options-button_new-project-test-name")
-      .waitFor({ state: "visible", timeout: 5000 });
+  await page.getByTestId("more-options-button_new-project-test-name").click();
 
-    await page.getByTestId("more-options-button_new-project-test-name").click();
-
-    await page.getByTestId("btn-delete-project").click();
-    await page.getByText(TEXTS.delete).last().click();
-    await expect(page.getByText(TEXTS.toastProjectDeleted)).toBeVisible({
-      timeout: 3000,
-    });
-  },
-);
+  await page.getByTestId("btn-delete-project").click();
+  await page.getByText(TEXTS.delete).last().click();
+  await expect(page.getByText(TEXTS.toastProjectDeleted)).toBeVisible({
+    timeout: 3000,
+  });
+});
 
 test("add a flow into a folder by drag and drop", async ({ page }) => {
   await page.goto("/");

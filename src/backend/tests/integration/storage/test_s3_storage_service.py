@@ -83,7 +83,7 @@ def mock_session_service():
 
 
 @pytest.fixture
-async def s3_storage_service(mock_session_service, mock_settings_service, _aws_credentials):
+async def s3_storage_service(mock_session_service, mock_settings_service, aws_credentials):  # noqa: ARG001
     """Create an S3StorageService instance for testing with real AWS."""
     service = S3StorageService(mock_session_service, mock_settings_service)
     yield service

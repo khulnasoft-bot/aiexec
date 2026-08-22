@@ -43,7 +43,7 @@ ENV VIRTUAL_ENV="/app/.venv"
 # installed here -- they belong to the full ``primeagent`` distribution, not
 # the lean core.  Use the ``primeagent`` image, or ``pip install`` the bundle
 # alongside this image, to add those components.
-RUN --mount=type=cache,target=/root/.cache/uv \
+RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
     uv pip install \
         ./src/sdk \
         ./src/wfx \
