@@ -728,11 +728,11 @@
                 "dependencies": [
                   {
                     "name": "orjson",
-                    "version": "3.11.9"
+                    "version": "3.12.0"
                   },
                   {
                     "name": "fastapi",
-                    "version": "0.138.1"
+                    "version": "0.141.1"
                   },
                   {
                     "name": "wfx",
@@ -1616,11 +1616,11 @@
                 "dependencies": [
                   {
                     "name": "pandas",
-                    "version": "2.2.3"
+                    "version": "2.3.3"
                   },
                   {
                     "name": "cryptography",
-                    "version": "48.0.1"
+                    "version": "50.0.0"
                   },
                   {
                     "name": "langchain_chroma",

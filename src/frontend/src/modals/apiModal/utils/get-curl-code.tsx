@@ -55,7 +55,12 @@ export function getNewCurlCode({
 }: {
   flowId: string;
   endpointName: string;
-  processedPayload: any;
+  processedPayload: {
+    output_type?: string;
+    input_type?: string;
+    input_value?: string;
+    tweaks?: Record<string, unknown>;
+  };
   platform?: "unix" | "powershell";
   shouldDisplayApiKey: boolean;
 }): { steps: { title: string; code: string }[] } | string {
@@ -70,7 +75,7 @@ export function getNewCurlCode({
       : "unix");
 
   // Check if there are file uploads
-  const tweaks = processedPayload.tweaks || {};
+  const tweaks: Record<string, unknown> = processedPayload.tweaks || {};
   const hasFiles = hasFileTweaks(tweaks);
 
   // If no file uploads, use existing logic
@@ -95,7 +100,7 @@ curl.exe --request POST \`
 ${getApiSampleHeaders("curl")}
      --header "Content-Type: application/json" \`${
        authHeader ? "\n" + authHeader : ""
-     }
+}
      --data $jsonData`;
     } else {
       const payloadWithSession = {
@@ -116,7 +121,7 @@ ${getApiSampleHeaders("curl")}
      --url '${apiUrl}?stream=false' \\
      --header 'Content-Type: application/json' \\${
        authHeader ? "\n" + authHeader : ""
-     }
+}
      --data '${unixFormattedPayload}'`;
     }
   }
@@ -148,7 +153,7 @@ ${getApiSampleHeaders("curl")}
      --form "file=@your_image_${uploadCounter}.jpg"`,
       );
     }
-    const originalTweak = tweaks[nodeId];
+    const originalTweak = (tweaks[nodeId] ?? {}) as Record<string, unknown>;
     const modifiedTweak = { ...originalTweak };
     modifiedTweak.files = [
       `REPLACE_WITH_FILE_PATH_FROM_UPLOAD_${uploadCounter}`,
@@ -181,7 +186,7 @@ ${getApiSampleHeaders("curl")}
      --form "file=@your_file_${uploadCounter}.pdf"`,
       );
     }
-    const originalTweak = tweaks[nodeId];
+    const originalTweak = (tweaks[nodeId] ?? {}) as Record<string, unknown>;
     const modifiedTweak = { ...originalTweak };
     if ("path" in originalTweak) {
       modifiedTweak.path = [

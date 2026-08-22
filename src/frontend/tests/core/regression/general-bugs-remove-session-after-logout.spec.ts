@@ -2,78 +2,76 @@ import { expect, test } from "../../fixtures";
 
 import { TEXTS } from "../../utils/constants/texts";
 
-test(
-  "user must not be able to login after logout and refresh the page when auto_login is false",
-  { tag: ["@release", "@api"] },
-  async ({ page }) => {
-    await page.route("**/api/v1/auto_login", (route) => {
-      route.fulfill({
-        status: 500,
-        contentType: "application/json",
-        body: JSON.stringify({
-          detail: { auto_login: false },
-        }),
-      });
+test("user must not be able to login after logout and refresh the page when auto_login is false", {
+  tag: ["@release", "@api"],
+}, async ({ page }) => {
+  await page.route("**/api/v1/auto_login", (route) => {
+    route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({
+        detail: { auto_login: false },
+      }),
+    });
+  });
+
+  await page.addInitScript(() => {
+    window.process = window.process || {};
+
+    const newEnv = { ...window.process.env, PRIMEAGENT_AUTO_LOGIN: "false" };
+
+    Object.defineProperty(window.process, "env", {
+      value: newEnv,
+      writable: true,
+      configurable: true,
     });
 
-    await page.addInitScript(() => {
-      window.process = window.process || {};
+    sessionStorage.setItem("testMockAutoLogin", "true");
+  });
 
-      const newEnv = { ...window.process.env, PRIMEAGENT_AUTO_LOGIN: "false" };
+  await page.goto("/");
 
-      Object.defineProperty(window.process, "env", {
-        value: newEnv,
-        writable: true,
-        configurable: true,
-      });
+  await page.waitForSelector(`text=${TEXTS.authSignInHeader}`, {
+    timeout: 30000,
+  });
 
-      sessionStorage.setItem("testMockAutoLogin", "true");
-    });
+  await page
+    .getByPlaceholder(TEXTS.placeholderUsername)
+    .fill(TEXTS.authDefaultCredential);
+  await page
+    .getByPlaceholder(TEXTS.placeholderPassword)
+    .fill(TEXTS.authDefaultCredential);
 
-    await page.goto("/");
+  await page.evaluate(() => {
+    sessionStorage.removeItem("testMockAutoLogin");
+  });
 
-    await page.waitForSelector(`text=${TEXTS.authSignInHeader}`, {
-      timeout: 30000,
-    });
+  await page.getByRole("button", { name: TEXTS.signIn }).click();
 
-    await page
-      .getByPlaceholder(TEXTS.placeholderUsername)
-      .fill(TEXTS.authDefaultCredential);
-    await page
-      .getByPlaceholder(TEXTS.placeholderPassword)
-      .fill(TEXTS.authDefaultCredential);
+  await page.waitForSelector('[data-testid="mainpage_title"]', {
+    timeout: 30000,
+  });
 
-    await page.evaluate(() => {
-      sessionStorage.removeItem("testMockAutoLogin");
-    });
+  await page.getByTestId("user-profile-settings").click();
 
-    await page.getByRole("button", { name: TEXTS.signIn }).click();
+  await page.evaluate(() => {
+    sessionStorage.setItem("testMockAutoLogin", "true");
+  });
 
-    await page.waitForSelector('[data-testid="mainpage_title"]', {
-      timeout: 30000,
-    });
+  await page.getByText(TEXTS.logout, { exact: true }).click();
 
-    await page.getByTestId("user-profile-settings").click();
+  await page.waitForTimeout(1000);
 
-    await page.evaluate(() => {
-      sessionStorage.setItem("testMockAutoLogin", "true");
-    });
+  await page.reload();
 
-    await page.getByText(TEXTS.logout, { exact: true }).click();
+  await page.waitForSelector(`text=${TEXTS.authSignInHeader}`, {
+    timeout: 30000,
+  });
 
-    await page.waitForTimeout(1000);
+  const isLoggedIn = await page
+    .getByTestId("mainpage_title")
+    .isVisible()
+    .catch(() => false);
 
-    await page.reload();
-
-    await page.waitForSelector(`text=${TEXTS.authSignInHeader}`, {
-      timeout: 30000,
-    });
-
-    const isLoggedIn = await page
-      .getByTestId("mainpage_title")
-      .isVisible()
-      .catch(() => false);
-
-    expect(isLoggedIn).toBeFalsy();
-  },
-);
+  expect(isLoggedIn).toBeFalsy();
+});

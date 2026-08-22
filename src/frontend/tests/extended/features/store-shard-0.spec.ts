@@ -8,14 +8,12 @@ test.skip("should exists Store", { tag: ["@release"] }, async ({ page }) => {
   await page.getByTestId("button-store").isEnabled();
 });
 
-test.skip(
-  "should not have an API key",
-  { tag: ["@release"] },
-  async ({ page }) => {
-    await awaitBootstrapTest(page, { skipModal: true });
+test.skip("should not have an API key", { tag: ["@release"] }, async ({
+  page,
+}) => {
+  await awaitBootstrapTest(page, { skipModal: true });
 
-    await page.getByTestId("button-store").click();
+  await page.getByTestId("button-store").click();
 
-    await expect(page.getByText("API Key Error")).toBeVisible();
-  },
-);
+  await expect(page.getByText("API Key Error")).toBeVisible();
+});

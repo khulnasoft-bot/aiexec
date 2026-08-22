@@ -1,4 +1,4 @@
-.PHONY: all init format_backend format lint build run_backend dev help tests coverage clean_python_cache clean_npm_cache clean_frontend_build clean_all run_clic load_test_setup load_test_setup_basic load_test_list_flows load_test_run load_test_primeagent_quick load_test_stress load_test_example load_test_clean load_test_remote_setup load_test_remote_run load_test_help docs docs_build docs_install api_examples_local api_examples_local_syntax
+.PHONY: all init format_backend format lint build run_backend dev help tests coverage clean_python_cache clean_npm_cache clean_frontend_build clean_all run_clic load_test_setup load_test_setup_basic load_test_list_flows load_test_run load_test_primeagent_quick load_test_stress load_test_example load_test_clean load_test_remote_setup load_test_remote_run load_test_help docs docs_build docs_install api_examples_local api_examples_local_syntax vercel_env_pull
 
 # Configurations
 VERSION=$(shell grep "^version" pyproject.toml | sed 's/.*\"\(.*\)\"$$/\1/')
@@ -275,6 +275,15 @@ setup_devcontainer: ## set up the development container
 
 setup_env: ## set up the environment
 	@sh ./scripts/setup/setup_env.sh
+
+vercel_env_pull: ## pull env vars from the linked Vercel project into .env.development.local
+	@if ! command -v vercel >/dev/null 2>&1; then \
+		echo "Vercel CLI not found. Install it with: npm i -g vercel"; exit 1; \
+	fi
+	vercel link
+	vercel env pull --environment=development .env.development.local
+	@echo 'Pulled Vercel environment to .env.development.local (gitignored).'
+	@echo 'Run the backend against it with: make backend env=.env.development.local'
 
 
 
@@ -874,6 +883,7 @@ help_backend: ## show backend-specific commands
 	@echo ''
 	@echo "$(GREEN)Development:$(NC)"
 	@echo "  $(GREEN)make backend$(NC)             - Run backend in development mode"
+	@echo "  $(GREEN)make vercel_env_pull$(NC)     - Pull env vars from linked Vercel project (.env.development.local)"
 	@echo "  $(GREEN)make run_cli$(NC)             - Run Primeagent CLI"
 	@echo "  $(GREEN)make run_clic$(NC)            - Run CLI with fresh frontend build"
 	@echo "  $(GREEN)make run_cli_debug$(NC)       - Run CLI in debug mode"

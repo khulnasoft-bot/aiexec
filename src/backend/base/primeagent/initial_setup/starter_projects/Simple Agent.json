@@ -654,11 +654,11 @@
                 "dependencies": [
                   {
                     "name": "orjson",
-                    "version": "3.11.9"
+                    "version": "3.12.0"
                   },
                   {
                     "name": "fastapi",
-                    "version": "0.138.1"
+                    "version": "0.141.1"
                   },
                   {
                     "name": "wfx",
@@ -945,7 +945,7 @@
                 "dependencies": [
                   {
                     "name": "langchain",
-                    "version": "1.3.11"
+                    "version": "1.3.16"
                   },
                   {
                     "name": "wfx",
@@ -953,7 +953,7 @@
                   },
                   {
                     "name": "langchain_core",
-                    "version": "1.4.8"
+                    "version": "1.6.0"
                   }
                 ],
                 "total_dependencies": 3
@@ -1544,7 +1544,7 @@
                   },
                   {
                     "name": "markitdown",
-                    "version": "0.1.6"
+                    "version": "0.1.7"
                   },
                   {
                     "name": "wfx",

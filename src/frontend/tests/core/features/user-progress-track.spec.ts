@@ -8,23 +8,19 @@ import { cleanOldFolders } from "../../utils/clean-old-folders";
 import { TEXTS } from "../../utils/constants/texts";
 import { openTemplatesModal } from "../../utils/flow/new-project-flow";
 
-test(
-  "admin user must be able to track their progress in getting started",
-  { tag: ["@release", "@api"] },
-  async ({ page, context }) => {
-    await page.goto("/");
-    await progressTrackTestFn(page, context);
-  },
-);
+test("admin user must be able to track their progress in getting started", {
+  tag: ["@release", "@api"],
+}, async ({ page, context }) => {
+  await page.goto("/");
+  await progressTrackTestFn(page, context);
+});
 
-test(
-  "normal user must be able to track their progress in getting started",
-  { tag: ["@release", "@api"] },
-  async ({ page, context }) => {
-    await addNewUserAndLogin(page);
-    await progressTrackTestFn(page, context, true);
-  },
-);
+test("normal user must be able to track their progress in getting started", {
+  tag: ["@release", "@api"],
+}, async ({ page, context }) => {
+  await addNewUserAndLogin(page);
+  await progressTrackTestFn(page, context, true);
+});
 
 async function progressTrackTestFn(
   page: Page,

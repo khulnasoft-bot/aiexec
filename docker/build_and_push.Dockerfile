@@ -36,7 +36,7 @@ RUN apt-get update \
     && if [ "$ARCH" = "amd64" ]; then NODE_ARCH="x64"; \
        elif [ "$ARCH" = "arm64" ]; then NODE_ARCH="arm64"; \
        else NODE_ARCH="$ARCH"; fi \
-    && NODE_VERSION="22.14.0" \
+    && NODE_VERSION="22.23.2" \
     && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" \
     | tar -xJ -C /usr/local --strip-components=1 \
     && npm install -g npm@latest \

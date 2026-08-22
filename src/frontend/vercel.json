@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "NODE_OPTIONS=--max-old-space-size=4096 npm run build",
+  "outputDirectory": "build",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://giving-admitted-residence-lincoln.trycloudflare.com/api/:path*"
+    },
+    {
+      "source": "/health_check",
+      "destination": "https://giving-admitted-residence-lincoln.trycloudflare.com/health_check"
+    },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
