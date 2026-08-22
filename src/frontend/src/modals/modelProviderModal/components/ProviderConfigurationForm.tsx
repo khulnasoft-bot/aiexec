@@ -1,20 +1,21 @@
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import ForwardedIconComponent from "@/components/common/genericIconComponent";
+import ShadTooltip from "@/components/common/shadTooltipComponent";
+import MultiselectComponent from "@/components/core/parameterRenderComponent/components/multiselectComponent";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ProviderVariable } from "@/constants/providerConstants";
-import ForwardedIconComponent from "@/components/common/genericIconComponent";
-import { cn } from "@/utils/utils";
-import { useEffect, useState } from "react";
-import MultiselectComponent from "@/components/core/parameterRenderComponent/components/multiselectComponent";
-import ShadTooltip from "@/components/common/shadTooltipComponent";
+import type { ProviderVariable } from "@/constants/providerConstants";
+import { customOpenNewTab } from "@/customization/utils/custom-open-new-tab";
 import useAlertStore from "@/stores/alertStore";
 import DisconnectWarning from "./DisconnectWarning";
-import { Provider } from "./types";
+import type { Provider } from "./types";
 
 const PROVIDER_KEY_PREVIEW: Record<
   string,
   { prefix: string; totalLength: number }
 > = {
-  OpenAI: { prefix: "sk-proj-", totalLength: 164 },
+  OpenAI: { prefix: "sk-", totalLength: 164 },
   Anthropic: { prefix: "sk-ant-", totalLength: 108 },
   "Google Generative AI": { prefix: "AIza", totalLength: 39 },
   "IBM watsonx": { prefix: "", totalLength: 44 },
@@ -52,7 +53,11 @@ export interface ProviderConfigurationFormProps {
 }
 
 // Generate a stable random placeholder for a given variable type
-const getPlaceholder = (variableName: string, provider: string) => {
+const getPlaceholder = (
+  variableName: string,
+  provider: string,
+  t: (key: string, opts?: Record<string, string>) => string,
+) => {
   const name = variableName.toLowerCase();
   const providerLower = provider.toLowerCase();
 
@@ -70,7 +75,7 @@ const getPlaceholder = (variableName: string, provider: string) => {
     if (providerLower.includes("openai")) return "sk-...";
   }
 
-  return `Enter your ${variableName}`;
+  return t("modelProviders.enterVariable", { variableName });
 };
 
 const ProviderConfigurationForm = ({
@@ -94,6 +99,7 @@ const ProviderConfigurationForm = ({
   requiresConfiguration,
   isFetchingAfterDisconnect,
 }: ProviderConfigurationFormProps) => {
+  const { t } = useTranslation();
   const [showDisconnectWarning, setShowDisconnectWarning] = useState(false);
   const [editingSecret, setEditingSecret] = useState<Record<string, boolean>>(
     {},
@@ -108,7 +114,7 @@ const ProviderConfigurationForm = ({
   useEffect(() => {
     if (validationState === "invalid" && validationError) {
       setErrorData({
-        title: "Validation Failed",
+        title: t("modelProviders.validationFailed"),
         list: [validationError],
       });
     }
@@ -123,43 +129,45 @@ const ProviderConfigurationForm = ({
   if (!selectedProvider) return null;
 
   return (
-    <div className="flex flex-col gap-1 p-4">
+    <div className="flex flex-col gap-1 px-4 pt-4">
       <div className="flex flex-row gap-1 min-w-[300px]">
         <span className="text-[13px] font-semibold mr-auto">
           {isSingleVariableProvider ? (
             <>
               {providerVariables[0].variable_name}
               {providerVariables[0].required && (
-                <span className="text-red-500 ml-1">*</span>
+                <span className="text-destructive ml-1">*</span>
               )}
             </>
           ) : (
-            `${selectedProvider.provider || "Unknown Provider"} ${requiresConfiguration && " Configuration"}`
+            `${selectedProvider.provider || t("modelProviders.unknownProvider")} ${requiresConfiguration && ` ${t("modelProviders.configuration")}`}`
           )}
         </span>
       </div>
       <span className="text-[13px] text-muted-foreground pt-1 pb-2">
         {requiresConfiguration ? (
           <>
-            Configure your{" "}
+            {t("modelProviders.configurePrefix")}{" "}
             <span
               className="underline cursor-pointer hover:text-primary"
               onClick={() => {
                 if (selectedProvider.api_docs_url) {
-                  window.open(
-                    selectedProvider.api_docs_url,
-                    "_blank",
-                    "noopener,noreferrer",
-                  );
+                  customOpenNewTab(selectedProvider.api_docs_url);
                 }
               }}
             >
-              {selectedProvider.provider} credentials
+              {t("modelProviders.credentialsLink", {
+                provider: selectedProvider.provider,
+              })}
             </span>{" "}
-            to enable these models
+            {t("modelProviders.toEnableModels")}
           </>
         ) : (
-          <>Activate {selectedProvider.provider} to enable these models</>
+          <>
+            {t("modelProviders.activateToEnable", {
+              provider: selectedProvider.provider,
+            })}
+          </>
         )}
       </span>
       {requiresConfiguration ? (
@@ -175,7 +183,7 @@ const ProviderConfigurationForm = ({
                   <label className="text-[12px] font-medium text-muted-foreground">
                     {variable.variable_name}
                     {variable.required && (
-                      <span className="text-red-500 ml-1">*</span>
+                      <span className="text-destructive ml-1">*</span>
                     )}
                   </label>
                 )}
@@ -234,7 +242,7 @@ const ProviderConfigurationForm = ({
                         {validationState !== "invalid" &&
                           (validationState === "valid" ||
                             (isConfigured && !hasNewValue)) && (
-                            <span className="absolute right-8 top-1/2 -translate-y-1/2 text-green-500 pointer-events-none">
+                            <span className="absolute right-8 top-1/2 -translate-y-1/2 text-accent-emerald-foreground pointer-events-none">
                               <ForwardedIconComponent
                                 name="Check"
                                 className="h-4 w-4"
@@ -247,9 +255,11 @@ const ProviderConfigurationForm = ({
                 ) : (
                   // Render input for text/secret variables
                   <Input
+                    data-testid={`provider-variable-input-${variable.variable_key}`}
                     placeholder={getPlaceholder(
                       variable.variable_name,
                       selectedProvider.provider,
+                      t,
                     )}
                     value={
                       isConfigured &&
@@ -307,7 +317,7 @@ const ProviderConfigurationForm = ({
                           (isConfigured && !hasNewValue && !isEditing)) ? (
                         <ForwardedIconComponent
                           name="Check"
-                          className="h-4 w-4 text-green-500 pointer-events-none"
+                          className="h-4 w-4 text-accent-emerald-foreground pointer-events-none"
                         />
                       ) : undefined
                     }
@@ -326,7 +336,7 @@ const ProviderConfigurationForm = ({
                 loading={isDeleting || isFetchingAfterDisconnect}
                 disabled={isDeleting || isFetchingAfterDisconnect || isSaving}
               >
-                Disconnect
+                {t("modelProviders.disconnectButton")}
               </Button>
             )}
             <Button
@@ -336,10 +346,10 @@ const ProviderConfigurationForm = ({
               disabled={!canSave || isLoading || isFetchingModels}
             >
               {validationFailed
-                ? "Retry Save"
+                ? t("modelProviders.retrySaveButton")
                 : isAlreadyConfigured
-                  ? "Replace Configuration"
-                  : "Save Configuration"}
+                  ? t("modelProviders.replaceButton")
+                  : t("modelProviders.saveButton")}
             </Button>
           </div>
         </div>
@@ -351,8 +361,12 @@ const ProviderConfigurationForm = ({
             disabled={selectedProvider.is_enabled}
           >
             {selectedProvider.is_enabled
-              ? `${selectedProvider.provider} Activated`
-              : `Activate ${selectedProvider.provider}`}
+              ? t("modelProviders.activatedButton", {
+                  provider: selectedProvider.provider,
+                })
+              : t("modelProviders.activateButton", {
+                  provider: selectedProvider.provider,
+                })}
           </Button>
           {selectedProvider.is_enabled && (
             <Button
@@ -360,7 +374,9 @@ const ProviderConfigurationForm = ({
               onClick={() => setShowDisconnectWarning(true)}
               disabled={isDeleting || isPending}
             >
-              Deactivate {selectedProvider.provider}
+              {t("modelProviders.deactivateButton", {
+                provider: selectedProvider.provider,
+              })}
             </Button>
           )}
         </div>
@@ -370,8 +386,10 @@ const ProviderConfigurationForm = ({
         show={showDisconnectWarning}
         message={
           requiresConfiguration
-            ? "Disconnecting an API key will disable all of the provider's models being used in a flow."
-            : `Deactivating ${selectedProvider.provider} will disable all of the provider's models being used in a flow.`
+            ? t("modelProviders.disconnectApiKeyWarning")
+            : t("modelProviders.deactivateWarning", {
+                provider: selectedProvider.provider,
+              })
         }
         onCancel={() => setShowDisconnectWarning(false)}
         onConfirm={() => {
@@ -379,7 +397,7 @@ const ProviderConfigurationForm = ({
           setShowDisconnectWarning(false);
         }}
         isLoading={isDeleting}
-        className="absolute inset-0 m-4 bg-background z-50 border-destructive border"
+        className="absolute inset-0 m-4 bg-background z-50 border-destructive border h-[165px]"
       />
     </div>
   );

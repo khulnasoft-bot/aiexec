@@ -2,6 +2,7 @@ import react from "@vitejs/plugin-react-swc";
 import * as dotenv from "dotenv";
 import path from "path";
 import { defineConfig, loadEnv } from "vite";
+import istanbul from "vite-plugin-istanbul";
 import svgr from "vite-plugin-svgr";
 import tsconfigPaths from "vite-tsconfig-paths";
 import {
@@ -41,37 +42,6 @@ export default defineConfig(({ mode }) => {
     base: BASENAME || "",
     build: {
       outDir: "build",
-      chunkSizeWarningLimit: 1000,
-      rollupOptions: {
-        output: {
-          manualChunks: (id) => {
-            if (id.includes("node_modules")) {
-              if (id.includes("@tanstack/react-query")) {
-                return "tanstack";
-              }
-              if (id.includes("@radix-ui")) {
-                return "radix";
-              }
-              if (id.includes("react") || id.includes("react-dom")) {
-                return "react";
-              }
-              if (id.includes("@xyflow/react") || id.includes("reactflow")) {
-                return "flow";
-              }
-              if (id.includes("ag-grid")) {
-                return "ag-grid";
-              }
-              if (id.includes("ace-builds") || id.includes("react-ace")) {
-                return "editor";
-              }
-              if (id.includes("framer-motion")) {
-                return "motion";
-              }
-              return "vendor";
-            }
-          },
-        },
-      },
     },
     define: {
       "import.meta.env.BACKEND_URL": JSON.stringify(
@@ -87,8 +57,33 @@ export default defineConfig(({ mode }) => {
       "import.meta.env.PRIMEAGENT_MCP_COMPOSER_ENABLED": JSON.stringify(
         envPrimeagent.PRIMEAGENT_MCP_COMPOSER_ENABLED ?? "true",
       ),
+      // Compile-time hard kill switch for the palette Bundle-header
+      // Reload action.  The actual user-facing gate is the runtime
+      // ``enable_extension_reload`` flag served from ``/config`` (mirrors
+      // ``PRIMEAGENT_ENABLE_EXTENSION_RELOAD``), so a packaged frontend
+      // built once can still light up the button when an operator opts
+      // the backend in via ``--env-file`` or ``wfx extension dev``.
+      // Default ``true`` here means the bundle SHIPS the UI; corporate
+      // Mode B/C builds that want to drop the code entirely can set
+      // ``PRIMEAGENT_EXTENSION_RELOAD_ENABLED=false`` in ``.env`` to dead-code-
+      // eliminate the Reload UI at build time.
+      "import.meta.env.PRIMEAGENT_EXTENSION_RELOAD_ENABLED": JSON.stringify(
+        envPrimeagent.PRIMEAGENT_EXTENSION_RELOAD_ENABLED ?? "true",
+      ),
+      "import.meta.env.PRIMEAGENT_WXO_UTM_SOURCE": JSON.stringify(
+        envPrimeagent.PRIMEAGENT_WXO_UTM_SOURCE ?? "primeagent",
+      ),
     },
-    plugins: [react(), svgr(), tsconfigPaths()],
+    plugins: [
+      react(),
+      svgr(),
+      tsconfigPaths(),
+      istanbul({
+        include: "src/**/*",
+        extension: [".ts", ".tsx", ".js", ".jsx"],
+        requireEnv: false,
+      }),
+    ],
     server: {
       port: port,
       proxy: {

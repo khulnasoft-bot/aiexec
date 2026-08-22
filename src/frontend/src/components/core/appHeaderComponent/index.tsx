@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import AlertDropdown from "@/alerts/alertDropDown";
 import PrimeagentLogo from "@/assets/PrimeagentLogo.svg?react";
-import { AssistantButton } from "@/components/common/assistant";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import ModelProviderCount from "@/components/common/modelProviderCountComponent";
 import ShadTooltip from "@/components/common/shadTooltipComponent";
@@ -10,13 +10,13 @@ import { Separator } from "@/components/ui/separator";
 import CustomAccountMenu from "@/customization/components/custom-AccountMenu";
 import CustomPrimeagentCounts from "@/customization/components/custom-primeagent-counts";
 import { CustomOrgSelector } from "@/customization/components/custom-org-selector";
-import { PRIMEAGENT_AGENTIC_EXPERIENCE } from "@/customization/feature-flags";
 import { useCustomNavigate } from "@/customization/hooks/use-custom-navigate";
 import useTheme from "@/customization/hooks/use-custom-theme";
 import useAlertStore from "@/stores/alertStore";
 import FlowMenu from "./components/FlowMenu";
 
 export default function AppHeader(): JSX.Element {
+  const { t } = useTranslation();
   const notificationCenter = useAlertStore((state) => state.notificationCenter);
   const navigate = useCustomNavigate();
   const [activeState, setActiveState] = useState<"notifications" | null>(null);
@@ -81,7 +81,6 @@ export default function AppHeader(): JSX.Element {
         data-testid="header_right_section_wrapper"
       >
         {false && <ModelProviderCount />}
-        {PRIMEAGENT_AGENTIC_EXPERIENCE && <AssistantButton type="header" />}
         <div className="hidden pr-2 whitespace-nowrap lg:inline-flex lg:items-center">
           <CustomPrimeagentCounts />
         </div>
@@ -89,11 +88,7 @@ export default function AppHeader(): JSX.Element {
           notificationRef={notificationContentRef}
           onClose={() => setActiveState(null)}
         >
-          <ShadTooltip
-            content="Notifications and errors"
-            side="bottom"
-            styleClasses="z-10"
-          >
+          <ShadTooltip content={t("header.notifications")} side="bottom">
             <AlertDropdown onClose={() => setActiveState(null)}>
               <Button
                 ref={notificationRef}
@@ -117,7 +112,7 @@ export default function AppHeader(): JSX.Element {
                     strokeWidth={2}
                   />
                   <span className="hidden whitespace-nowrap">
-                    Notifications
+                    {t("header.notificationsLabel")}
                   </span>
                 </div>
               </Button>
@@ -126,7 +121,7 @@ export default function AppHeader(): JSX.Element {
         </AlertDropdown>
         <Separator
           orientation="vertical"
-          className="my-auto h-7 dark:border-zinc-700"
+          className="my-auto h-7 dark:border-border"
         />
 
         <div className="flex">

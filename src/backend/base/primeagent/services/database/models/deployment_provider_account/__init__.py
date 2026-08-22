@@ -1,13 +1,11 @@
 from .model import (
     DeploymentProviderAccount,
-    DeploymentProviderAccountCreate,
     DeploymentProviderAccountRead,
-    DeploymentProviderAccountUpdate,
 )
+from .schemas import DeploymentProviderKey
 
 __all__ = [
     "DeploymentProviderAccount",
-    "DeploymentProviderAccountCreate",
     "DeploymentProviderAccountRead",
-    "DeploymentProviderAccountUpdate",
+    "DeploymentProviderKey",
 ]

@@ -7,24 +7,33 @@ from wfx.components._importing import import_mod
 if TYPE_CHECKING:
     from wfx.components.files_and_knowledge.directory import DirectoryComponent
     from wfx.components.files_and_knowledge.file import FileComponent
+    from wfx.components.files_and_knowledge.filesystem import FileSystemToolComponent
     from wfx.components.files_and_knowledge.ingestion import KnowledgeIngestionComponent
-    from wfx.components.files_and_knowledge.retrieval import KnowledgeRetrievalComponent
+    from wfx.components.files_and_knowledge.knowledge import KnowledgeComponent
+    from wfx.components.files_and_knowledge.memory_retrieval import MemoryBaseComponent
+    from wfx.components.files_and_knowledge.retrieval import KnowledgeBaseComponent
     from wfx.components.files_and_knowledge.save_file import SaveToFileComponent
 
 
 _dynamic_imports = {
     "DirectoryComponent": "directory",
     "FileComponent": "file",
+    "FileSystemToolComponent": "filesystem",
+    "KnowledgeComponent": "knowledge",
     "KnowledgeIngestionComponent": "ingestion",
-    "KnowledgeRetrievalComponent": "retrieval",
+    "KnowledgeBaseComponent": "retrieval",
+    "MemoryBaseComponent": "memory_retrieval",
     "SaveToFileComponent": "save_file",
 }
 
 __all__ = [
     "DirectoryComponent",
     "FileComponent",
+    "FileSystemToolComponent",
+    "KnowledgeBaseComponent",
+    "KnowledgeComponent",
     "KnowledgeIngestionComponent",
-    "KnowledgeRetrievalComponent",
+    "MemoryBaseComponent",
     "SaveToFileComponent",
 ]
 

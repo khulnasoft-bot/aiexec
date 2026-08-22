@@ -27,7 +27,6 @@ import {
   getLeftHandleId,
   getRightHandleId,
 } from "@/CustomNodes/utils/get-handle-id";
-import { INCOMPLETE_LOOP_ERROR_ALERT } from "@/constants/alerts_constants";
 import { customDownloadNodeJson } from "@/customization/utils/custom-download-json";
 import { customDownloadFlow } from "@/customization/utils/custom-reactFlowUtils";
 import useFlowStore from "@/stores/flowStore";
@@ -37,10 +36,10 @@ import {
   IS_MAC,
   PRIMEAGENT_SUPPORTED_TYPES,
   OUTPUT_TYPES,
-  SUCCESS_BUILD,
   specialCharsRegex,
 } from "../constants/constants";
 import { DESCRIPTIONS } from "../flow_constants";
+import i18n from "../i18n";
 import type {
   APIClassType,
   APIKindType,
@@ -71,14 +70,6 @@ import { getLayoutedNodes } from "./layoutUtils";
 import { createRandomKey, toTitleCase } from "./utils";
 
 const uid = new ShortUniqueId();
-
-export function checkChatInput(nodes: Node[]) {
-  return nodes.some((node) => node.data.type === "ChatInput");
-}
-
-export function checkWebhookInput(nodes: Node[]) {
-  return nodes.some((node) => node.data.type === "Webhook");
-}
 
 export function cleanEdges(nodes: AllNodeType[], edges: EdgeType[]) {
   const brokenEdges: {
@@ -196,14 +187,42 @@ export function cleanEdges(nodes: AllNodeType[], edges: EdgeType[]) {
       );
       const isLoopInput = targetOutput?.allows_loop === true;
 
+      // Backward compatibility: old flows may have Data/DataFrame types that need to match JSON/Table
+      const expectedTargetHandle = scapedJSONStringfy(id);
+      const targetHandlesMatchResult = handlesMatch(
+        expectedTargetHandle,
+        targetHandle,
+      );
       if (
-        (scapedJSONStringfy(id) !== targetHandle ||
+        (!targetHandlesMatchResult ||
           (targetNode.data.node?.tool_mode && isToolMode) ||
           isAdvanced) &&
         !isLoopInput
       ) {
         newEdges = newEdges.filter((e) => e.id !== edge.id);
         brokenEdges.push(generateAlertObject(sourceNode, targetNode, edge));
+      } else if (
+        targetHandlesMatchResult &&
+        expectedTargetHandle !== targetHandle
+      ) {
+        // Handles match via migration but IDs differ — update edge to use current types
+        // so React Flow can find the DOM handle
+        const edgeInNewEdges = newEdges.find((e) => e.id === edge.id);
+        if (edgeInNewEdges) {
+          edgeInNewEdges.targetHandle = expectedTargetHandle;
+          if (edgeInNewEdges.data) {
+            edgeInNewEdges.data.targetHandle =
+              scapeJSONParse(expectedTargetHandle);
+          }
+          // Update edge ID to reflect new handles
+          edgeInNewEdges.id =
+            "reactflow__edge-" +
+            edgeInNewEdges.source +
+            (edgeInNewEdges.sourceHandle ?? "") +
+            "-" +
+            edgeInNewEdges.target +
+            expectedTargetHandle;
+        }
       }
     }
     if (sourceHandle) {
@@ -211,18 +230,32 @@ export function cleanEdges(nodes: AllNodeType[], edges: EdgeType[]) {
       const name = parsedSourceHandle.name;
 
       if (sourceNode.type == "genericNode") {
-        const output =
-          sourceNode.data.node!.outputs?.find(
-            (output) => output.name === sourceNode.data.selected_output,
-          ) ??
-          sourceNode.data.node!.outputs?.find(
-            (output) =>
-              (output.selected ||
-                (sourceNode.data.node!.outputs?.filter(
-                  (output) => !output.group_outputs,
-                )?.length ?? 0) <= 1) &&
-              output.name === name,
-          );
+        // For components with group_outputs, each output has its own handle,
+        // so we must NOT use selected_output (which would match the wrong output).
+        // Only use selected_output for single-output dropdown components.
+        const hasGroupOutputs = sourceNode.data.node!.outputs?.some(
+          (o) => o.group_outputs,
+        );
+        const outputBySelectedOutput = hasGroupOutputs
+          ? undefined
+          : sourceNode.data.node!.outputs?.find(
+              (output) => output.name === sourceNode.data.selected_output,
+            );
+        const outputByFallback = sourceNode.data.node!.outputs?.find(
+          (output) =>
+            (output.selected ||
+              (sourceNode.data.node!.outputs?.filter(
+                (output) => !output.group_outputs,
+              )?.length ?? 0) <= 1) &&
+            output.name === name,
+        );
+        // Prefer the stored edge name (outputByFallback) over selected_output:
+        // mode-based components (e.g. Knowledge) keep both outputs in the class
+        // list, so trusting selected_output here silently rewrites edges to the
+        // wrong handle. selected_output is still the canonical pick for
+        // single-output dropdown components — fall back to it only when the
+        // stored handle name no longer matches any visible output.
+        const output = outputByFallback ?? outputBySelectedOutput;
 
         if (output) {
           const outputTypes =
@@ -237,9 +270,36 @@ export function cleanEdges(nodes: AllNodeType[], edges: EdgeType[]) {
 
           // Skip edge cleanup for outputs with allows_loop=true
           const hasAllowsLoop = output?.allows_loop === true;
-          if (scapedJSONStringfy(id) !== sourceHandle && !hasAllowsLoop) {
+          // Backward compatibility: old flows may have Data/DataFrame types that need to match JSON/Table
+          const expectedSourceHandle = scapedJSONStringfy(id);
+          const sourceMatchResult = handlesMatch(
+            expectedSourceHandle,
+            sourceHandle,
+          );
+          if (!sourceMatchResult && !hasAllowsLoop) {
             newEdges = newEdges.filter((e) => e.id !== edge.id);
             brokenEdges.push(generateAlertObject(sourceNode, targetNode, edge));
+          } else if (
+            sourceMatchResult &&
+            expectedSourceHandle !== sourceHandle
+          ) {
+            // Handles match via migration but IDs differ — update edge to use current types
+            const edgeInNewEdges = newEdges.find((e) => e.id === edge.id);
+            if (edgeInNewEdges) {
+              edgeInNewEdges.sourceHandle = expectedSourceHandle;
+              if (edgeInNewEdges.data) {
+                edgeInNewEdges.data.sourceHandle =
+                  scapeJSONParse(expectedSourceHandle);
+              }
+              // Update edge ID to reflect new handles
+              edgeInNewEdges.id =
+                "reactflow__edge-" +
+                edgeInNewEdges.source +
+                expectedSourceHandle +
+                "-" +
+                edgeInNewEdges.target +
+                (edgeInNewEdges.targetHandle ?? "");
+            }
           }
         } else {
           newEdges = newEdges.filter((e) => e.id !== edge.id);
@@ -369,29 +429,42 @@ export function isValidConnection(
 
   // For loop inputs, check if source types match any of the configured target output_types
   // (which already includes original type + loop_types from the output configuration)
+  // Backward compatibility: old flows may have Data/DataFrame types that need to match JSON/Table
   const loopInputTypeCheck =
     isLoopInput &&
-    (sourceHandleObject.output_types.some((t) =>
-      targetHandleObject.output_types?.includes(t),
+    (typesAreCompatible(
+      sourceHandleObject.output_types,
+      targetHandleObject.output_types || [],
     ) ||
-      targetHandleObject.output_types?.includes(sourceHandleObject.dataType));
+      typeIsCompatibleWith(
+        sourceHandleObject.dataType,
+        targetHandleObject.output_types || [],
+      ));
   if (
-    targetHandleObject.inputTypes?.some(
-      (n) => n === sourceHandleObject.dataType,
+    typeIsCompatibleWith(
+      sourceHandleObject.dataType,
+      targetHandleObject.inputTypes || [],
     ) ||
     loopInputTypeCheck ||
     (targetHandleObject.output_types &&
       !loopInputTypeCheck &&
-      (targetHandleObject.output_types?.some(
-        (n) => n === sourceHandleObject.dataType,
+      (typeIsCompatibleWith(
+        sourceHandleObject.dataType,
+        targetHandleObject.output_types || [],
       ) ||
-        sourceHandleObject.output_types.some((t) =>
-          targetHandleObject.output_types?.some((n) => n === t),
+        typesAreCompatible(
+          sourceHandleObject.output_types,
+          targetHandleObject.output_types || [],
         ))) ||
-    sourceHandleObject.output_types.some(
-      (t) =>
-        targetHandleObject.inputTypes?.some((n) => n === t) ||
-        t === targetHandleObject.type,
+    typesAreCompatible(
+      sourceHandleObject.output_types,
+      targetHandleObject.inputTypes || [],
+    ) ||
+    typeIsCompatibleWith(sourceHandleObject.dataType, [
+      targetHandleObject.type,
+    ]) ||
+    sourceHandleObject.output_types.some((t) =>
+      typeIsCompatibleWith(t, [targetHandleObject.type]),
     )
   ) {
     const targetNode = nodesArray.find((node) => node.id === target!);
@@ -437,16 +510,32 @@ export function isValidConnection(
   return false;
 }
 
-export function removeApiKeys(flow: FlowType): FlowType {
-  const cleanFLow = cloneDeep(flow);
-  cleanFLow.data!.nodes.forEach((node) => {
-    if (node.type !== "genericNode") return;
-    for (const key in node.data.node!.template) {
-      const field = node.data.node!.template[key];
+export function looksLikeVariableName(value: unknown): boolean {
+  if (typeof value !== "string" || !value.trim()) return false;
+  return /^[A-Z][A-Z0-9_]*$/i.test(value.trim());
+}
 
-      // Remove password fields
+export function removeApiKeys(flow: FlowType): FlowType {
+  const cleanFlow = cloneDeep(flow);
+  cleanFlow.data!.nodes.forEach((node) => {
+    if (node.type !== "genericNode") return;
+    const template = node.data.node!.template;
+    for (const key in template) {
+      const field = template[key];
+
       if (field.password) {
+        // Preserve env/global variable names for api_key so imported flows
+        // can still resolve credentials, but strip any raw secrets.
+        if (
+          key === "api_key" &&
+          ((typeof field.value === "string" &&
+            looksLikeVariableName(field.value)) ||
+            field.load_from_db === true)
+        ) {
+          continue;
+        }
         field.value = "";
+        field.load_from_db = false;
       }
 
       // Handle MCP server configurations
@@ -455,12 +544,11 @@ export function removeApiKeys(flow: FlowType): FlowType {
         field.value &&
         typeof field.value === "object"
       ) {
-        // Type assertion is safe here as we've verified it's an object with runtime checks
         cleanMcpConfig(field.value as MCPServerValue);
       }
     }
   });
-  return cleanFLow;
+  return cleanFlow;
 }
 
 export function updateTemplate(
@@ -697,7 +785,7 @@ export function validateEdge(
 
   const loop = hasLoop(e, nodes, edges);
   if (targetHandleObject.output_types && !loop) {
-    return [INCOMPLETE_LOOP_ERROR_ALERT];
+    return [i18n.t("errors.incompleteLoop")];
   }
   return [];
 }
@@ -1069,6 +1157,243 @@ export function scapeJSONParse(json: string): any {
   return JSON.parse(parsed);
 }
 
+/**
+ * Map of old types to new types for migration compatibility.
+ * Allows edges saved with old types (Data/DataFrame) to work with new types (JSON/Table).
+ */
+const TYPE_MIGRATIONS: Record<string, string> = {
+  Data: "JSON",
+  DataFrame: "Table",
+};
+
+/**
+ * Check if a single type is compatible with any type in a list, considering migrations.
+ * @param sourceType The type from the source output
+ * @param targetTypes The list of acceptable types from the target input
+ * @returns true if sourceType matches any targetType directly or via migration
+ */
+export function typeIsCompatibleWith(
+  sourceType: string,
+  targetTypes: string[],
+): boolean {
+  const migratedSource = TYPE_MIGRATIONS[sourceType] || sourceType;
+  return targetTypes.some((targetType) => {
+    const migratedTarget = TYPE_MIGRATIONS[targetType] || targetType;
+    return (
+      sourceType === targetType ||
+      migratedSource === targetType ||
+      sourceType === migratedTarget ||
+      migratedSource === migratedTarget
+    );
+  });
+}
+
+/**
+ * Check if any type from sourceTypes is compatible with any type in targetTypes.
+ * @param sourceTypes The types from the source output
+ * @param targetTypes The list of acceptable types from the target input
+ * @returns true if any sourceType matches any targetType directly or via migration
+ */
+export function typesAreCompatible(
+  sourceTypes: string[],
+  targetTypes: string[],
+): boolean {
+  return sourceTypes.some((sourceType) =>
+    typeIsCompatibleWith(sourceType, targetTypes),
+  );
+}
+
+/**
+ * Check if two handles match, considering type migrations (Data→JSON, DataFrame→Table).
+ * This allows edges saved with old types to be compatible with new types.
+ */
+export function handlesMatch(
+  expectedHandle: string,
+  actualHandle: string,
+): boolean {
+  if (expectedHandle === actualHandle) {
+    return true;
+  }
+
+  try {
+    // Parse both handles to compare their components
+    const expected = scapeJSONParse(expectedHandle);
+    const actual = scapeJSONParse(actualHandle);
+
+    // Check all properties except output_types/inputTypes
+    if (expected.id !== actual.id || expected.name !== actual.name) {
+      return false;
+    }
+
+    // For source handles (have dataType)
+    if (
+      expected.dataType !== undefined &&
+      expected.dataType !== actual.dataType
+    ) {
+      return false;
+    }
+
+    // For target handles (have fieldName)
+    if (
+      expected.fieldName !== undefined &&
+      expected.fieldName !== actual.fieldName
+    ) {
+      return false;
+    }
+    if (expected.type !== undefined && expected.type !== actual.type) {
+      return false;
+    }
+
+    // Compare output_types with migration tolerance
+    const expectedTypes = expected.output_types || expected.inputTypes || [];
+    const actualTypes = actual.output_types || actual.inputTypes || [];
+
+    if (expectedTypes.length !== actualTypes.length) {
+      // Allow mismatch if one is migrated version of other
+      return typesMatchWithMigration(expectedTypes, actualTypes);
+    }
+
+    // Check if types match exactly or via migration
+    return typesMatchWithMigration(expectedTypes, actualTypes);
+  } catch {
+    // If parsing fails, fall back to direct comparison
+    return false;
+  }
+}
+
+/**
+ * Check if two type arrays match, considering type migrations.
+ */
+function typesMatchWithMigration(
+  expectedTypes: string[],
+  actualTypes: string[],
+): boolean {
+  if (expectedTypes.length === 0 && actualTypes.length === 0) {
+    return true;
+  }
+
+  // Check each expected type against actual types
+  for (const expectedType of expectedTypes) {
+    const migratedExpected = TYPE_MIGRATIONS[expectedType] || expectedType;
+    const found = actualTypes.some((actualType) => {
+      const migratedActual = TYPE_MIGRATIONS[actualType] || actualType;
+      return (
+        expectedType === actualType ||
+        migratedExpected === actualType ||
+        expectedType === migratedActual ||
+        migratedExpected === migratedActual
+      );
+    });
+    if (found) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Migrate TypeConverter nodes to sync outputs with output_type value.
+ * This fixes the bug where loading a template shows "Message Output" even when output_type is "JSON".
+ */
+export function migrateTypeConverterNodes(
+  nodes: AllNodeType[],
+  edges?: EdgeType[],
+): void {
+  // Track which nodes were migrated and their new output types
+  const migratedNodes = new Map<string, string[]>();
+
+  nodes.forEach((node) => {
+    // Only migrate TypeConverter components
+    if (node.data?.node?.display_name !== "Type Convert") {
+      return;
+    }
+
+    // Type guard: ensure this is a NodeDataType (not NoteDataType)
+    if (!("node" in node.data)) {
+      return;
+    }
+
+    const outputType = node.data.node?.template?.output_type?.value;
+    const currentOutputs = node.data.node?.outputs || [];
+
+    // Determine correct output based on output_type
+    let correctOutput: OutputFieldType;
+    let selectedOutput: string;
+    let outputTypes: string[];
+
+    if (outputType === "JSON" || outputType === "Data") {
+      outputTypes = ["JSON"];
+      correctOutput = {
+        types: outputTypes,
+        selected: "JSON",
+        name: "data_output",
+        display_name: "JSON Output",
+        method: "convert_to_data",
+      };
+      selectedOutput = "data_output";
+    } else if (outputType === "Table" || outputType === "DataFrame") {
+      outputTypes = ["Table"];
+      correctOutput = {
+        types: outputTypes,
+        selected: "Table",
+        name: "dataframe_output",
+        display_name: "Table Output",
+        method: "convert_to_dataframe",
+      };
+      selectedOutput = "dataframe_output";
+    } else {
+      // Default to Message
+      outputTypes = ["Message"];
+      correctOutput = {
+        types: outputTypes,
+        selected: "Message",
+        name: "message_output",
+        display_name: "Message Output",
+        method: "convert_to_message",
+      };
+      selectedOutput = "message_output";
+    }
+
+    // Check if migration is needed
+    const needsMigration =
+      currentOutputs.length !== 1 ||
+      currentOutputs[0]?.name !== correctOutput.name;
+
+    if (needsMigration) {
+      // Update outputs
+      node.data.node.outputs = [correctOutput];
+      (node.data as any).selected_output = selectedOutput;
+
+      // Track this migration for edge updates
+      migratedNodes.set(node.id, outputTypes);
+    }
+  });
+
+  // Update edges that connect to migrated nodes
+  if (edges && migratedNodes.size > 0) {
+    edges.forEach((edge) => {
+      // Check if source node was migrated
+      const sourceOutputTypes = migratedNodes.get(edge.source);
+      if (sourceOutputTypes && edge.sourceHandle) {
+        try {
+          const sourceHandle = scapeJSONParse(edge.sourceHandle);
+          // Update output_types in the handle
+          sourceHandle.output_types = sourceOutputTypes;
+          edge.sourceHandle = scapedJSONStringfy(sourceHandle);
+
+          // Also update in edge.data if it exists
+          if (edge.data?.sourceHandle) {
+            edge.data.sourceHandle.output_types = sourceOutputTypes;
+          }
+        } catch {
+          // Handle parse error silently
+        }
+      }
+    });
+  }
+}
+
 // this function receives an array of edges and return true if any of the handles are not a json string
 export function checkOldEdgesHandles(edges: Edge[]): boolean {
   return edges.some(
@@ -1371,6 +1696,11 @@ export function mergeNodeTemplates({
     const nodeTemplate = cloneDeep(node.data.node!.template);
     Object.keys(nodeTemplate)
       .filter((field_name) => field_name.charAt(0) !== "_")
+      .filter(
+        (field_name) =>
+          typeof nodeTemplate[field_name] === "object" &&
+          nodeTemplate[field_name] !== null,
+      )
       .forEach((key) => {
         if (
           node.type === "genericNode" &&
@@ -1704,7 +2034,7 @@ export function getGroupStatus(
   flow: FlowType,
   ssData: { [key: string]: { valid: boolean; params: string } },
 ) {
-  let status = { valid: true, params: SUCCESS_BUILD };
+  let status = { valid: true, params: i18n.t("flow.buildSuccess") };
   const { nodes } = flow.data!;
   const ids = nodes.map((n: AllNodeType) => n.data.id);
   ids.forEach((id) => {
@@ -1800,14 +2130,52 @@ export function typesGenerator(data: APIObjectType) {
     }, {});
 }
 
+const getTemplateAliases = (
+  componentKey: string,
+  component: Record<string, any>,
+): string[] => {
+  const aliases = [componentKey, component?.name, component?.display_name];
+  const legacyAliases: Record<string, string[]> = {
+    ParserComponent: ["parser"],
+    "Prompt Template": ["Prompt"],
+  };
+  const componentType = component?.template?._type;
+
+  aliases.push(...(legacyAliases[componentKey] ?? []));
+
+  if (
+    typeof componentType === "string" &&
+    componentType.endsWith("Component")
+  ) {
+    aliases.push(componentType.replace(/Component$/, ""));
+  }
+
+  return Array.from(new Set(aliases.filter(Boolean)));
+};
+
 export function templatesGenerator(data: APIObjectType) {
-  return Object.keys(data).reduce((acc, curr) => {
-    Object.keys(data[curr]).forEach((c: keyof APIKindType) => {
-      //prevent wrong overwriting of the component template by a group of the same type
-      if (!data[curr][c].flow) acc[c] = data[curr][c];
-    });
-    return acc;
-  }, {});
+  const templates = Object.entries(data).reduce<Record<string, APIClassType>>(
+    (acc, [, kind]) => {
+      Object.entries(kind).forEach(([componentKey, component]) => {
+        //prevent wrong overwriting of the component template by a group of the same type
+        if (!(component as APIClassType).flow) {
+          acc[componentKey] = cloneDeep(component as APIClassType);
+        }
+      });
+      return acc;
+    },
+    {},
+  );
+
+  for (const [componentKey, component] of Object.entries(templates)) {
+    for (const alias of getTemplateAliases(componentKey, component)) {
+      if (!(alias in templates)) {
+        templates[alias] = component;
+      }
+    }
+  }
+
+  return templates;
 }
 
 /**
@@ -2002,7 +2370,7 @@ export function getRandomElement<T>(array: T[]): T {
 }
 
 export function getRandomDescription(): string {
-  return getRandomElement(DESCRIPTIONS);
+  return i18n.t(getRandomElement(DESCRIPTIONS));
 }
 
 export const createNewFlow = (
@@ -2012,7 +2380,7 @@ export const createNewFlow = (
 ) => {
   return {
     description: flow?.description ?? getRandomDescription(),
-    name: flow?.name ? flow.name : "New Flow",
+    name: flow?.name ? flow.name : i18n.t("flow.defaultName"),
     data: flowData,
     id: "",
     icon: flow?.icon ?? undefined,

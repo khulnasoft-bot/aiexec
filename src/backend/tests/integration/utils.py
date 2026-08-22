@@ -103,7 +103,7 @@ class JSONFlow:
 
 def download_flow_from_github(name: str, version: str) -> JSONFlow:
     response = requests.get(
-        f"https://raw.githubusercontent.com/khulnasoft-bot/primeagent/v{version}/src/backend/base/primeagent/initial_setup/starter_projects/{name}.json",
+        f"https://raw.githubusercontent.com/khulnasoft/primeagent/v{version}/src/backend/base/primeagent/initial_setup/starter_projects/{name}.json",
         timeout=10,
     )
     response.raise_for_status()
@@ -114,7 +114,7 @@ def download_flow_from_github(name: str, version: str) -> JSONFlow:
 def download_component_from_github(module: str, file_name: str, version: str) -> Component:
     version_string = f"v{version}" if version != "main" else version
     response = requests.get(
-        f"https://raw.githubusercontent.com/khulnasoft-bot/primeagent/{version_string}/src/backend/base/primeagent/components/{module}/{file_name}.py",
+        f"https://raw.githubusercontent.com/khulnasoft/primeagent/{version_string}/src/backend/base/primeagent/components/{module}/{file_name}.py",
         timeout=10,
     )
     response.raise_for_status()
@@ -198,5 +198,10 @@ def pyleak_marker(**extra_args):
     default_args = {
         "enable_task_creation_tracking": True,  # log task creation stacks
         "thread_name_filter": r"^(?!asyncio_\d+$).*",  # exclude `asyncio_{num}` threads
+        # Exclude the telemetry writer's background ticks (`telemetry-writer*`,
+        # `telemetry-sweeper*`). They are long-lived daemons that legitimately
+        # cycle wait_for wrappers across test boundaries; the writer's own
+        # unit tests cover its lifecycle.
+        "task_name_filter": r"^(?!telemetry-).*",
     }
     return pytest.mark.no_leaks(**default_args, **extra_args)

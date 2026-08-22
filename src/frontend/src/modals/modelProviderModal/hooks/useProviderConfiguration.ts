@@ -1,24 +1,25 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   PROVIDER_VARIABLE_MAPPING,
   ProviderVariable,
   VARIABLE_CATEGORY,
 } from "@/constants/providerConstants";
+import { getAxiosErrorMessage } from "@/controllers/API/helpers/get-axios-error-message";
+import { useGetModelProviders } from "@/controllers/API/queries/models/use-get-model-providers";
+import { useGetProviderVariables } from "@/controllers/API/queries/models/use-get-provider-variables";
+import { useValidateProvider } from "@/controllers/API/queries/models/use-validate-provider";
 import {
   useDeleteGlobalVariables,
   useGetGlobalVariables,
   usePatchGlobalVariables,
   usePostGlobalVariables,
 } from "@/controllers/API/queries/variables";
-import { useValidateProvider } from "@/controllers/API/queries/models/use-validate-provider";
-import { useGetProviderVariables } from "@/controllers/API/queries/models/use-get-provider-variables";
-import { useUpdateEnabledModels } from "@/controllers/API/queries/models/use-update-enabled-models";
-import { EnabledModelsResponse } from "@/controllers/API/queries/models/use-get-enabled-models";
-import { useGetModelProviders } from "@/controllers/API/queries/models/use-get-model-providers";
-import { useDebounce } from "@/hooks/use-debounce";
+import { useRefreshModelInputs } from "@/hooks/use-refresh-model-inputs";
 import useAlertStore from "@/stores/alertStore";
 import { Provider } from "../components/types";
+import { useModelToggleQueue } from "./useModelToggleQueue";
 
 // Masked value shown for configured secret fields
 const MASKED_VALUE = "••••••••";
@@ -48,6 +49,8 @@ interface UseProviderConfigurationReturn {
   handleActivateProvider: () => void;
   validateCredentials: () => Promise<boolean>;
   handleModelToggle: (modelName: string, enabled: boolean) => void;
+  flushPendingChanges: () => Promise<void>;
+  hasUserMadeChanges: () => boolean;
 
   // Helpers
   isVariableConfigured: (key: string) => boolean;
@@ -81,10 +84,22 @@ export const useProviderConfiguration = ({
   const [isFetchingAfterSave, setIsFetchingAfterSave] = useState(false);
   const [isFetchingAfterDisconnect, setIsFetchingAfterDisconnect] =
     useState(false);
-  const validationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+  const _validationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
 
+  // Tracks whether the user has made any persisted changes during this dialog
+  // session (save / activate / disconnect / model toggle). Read synchronously
+  // by the modal's onClose handler to skip refreshAllModelInputs and the
+  // accompanying loading affordance when the user opened the dialog and closed
+  // it without touching anything.
+  const hasUserMadeChangesRef = useRef(false);
+  const hasUserMadeChanges = useCallback(
+    () => hasUserMadeChangesRef.current,
+    [],
+  );
+
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const setSuccessData = useAlertStore((state) => state.setSuccessData);
   const setErrorData = useAlertStore((state) => state.setErrorData);
@@ -98,15 +113,21 @@ export const useProviderConfiguration = ({
   const { data: globalVariables = [] } = useGetGlobalVariables();
   const { mutateAsync: validateProvider } = useValidateProvider();
   const { data: providerVariablesMapping = {} } = useGetProviderVariables();
-  const { mutate: updateEnabledModels } = useUpdateEnabledModels({ retry: 0 });
+  const { refreshAllModelInputs } = useRefreshModelInputs();
   const { data: modelProviders = [], isFetching: isFetchingModels } =
     useGetModelProviders(
-      {},
+      { includeDeprecated: true },
       {
-        refetchInterval:
-          syncedSelectedProvider?.provider?.toLowerCase() === "ollama"
-            ? 10000
-            : false,
+        // Issue #13137: the previous 10s ``refetchInterval`` polled
+        // ``/api/v1/models`` continuously while the Ollama card was
+        // selected. Each backend call serially probed every Ollama model
+        // (GET /api/tags + POST /api/show per model), so with many models
+        // the request took longer than the interval and the queue grew
+        // unbounded. The catalog already refreshes on credential save and
+        // disconnect via ``invalidateProviderQueries``, so the timer is
+        // unnecessary — leaving it removed makes the list update on
+        // demand instead of on a fixed schedule.
+        refetchInterval: false,
         staleTime: 1000 * 30, // 30 seconds
       },
     );
@@ -144,12 +165,21 @@ export const useProviderConfiguration = ({
           setSuccessData({ title: pendingSuccessTitleRef.current });
           pendingSuccessTitleRef.current = null;
         }
+        // Refresh all model nodes on the canvas so they pick up new models
+        refreshAllModelInputs({ silent: true });
       }
       if (isFetchingAfterDisconnect) {
         setIsFetchingAfterDisconnect(false);
+        // Refresh all model nodes on the canvas so they reflect the disconnect
+        refreshAllModelInputs({ silent: true });
       }
     }
-  }, [isFetchingModels, isFetchingAfterSave, isFetchingAfterDisconnect]);
+  }, [
+    isFetchingModels,
+    isFetchingAfterSave,
+    isFetchingAfterDisconnect,
+    refreshAllModelInputs,
+  ]);
 
   // Keep syncedSelectedProvider in sync with prop and reset state on provider change
   useEffect(() => {
@@ -201,7 +231,7 @@ export const useProviderConfiguration = ({
 
     const providerName = syncedSelectedProvider.provider;
     const apiVariables = providerVariablesMapping[providerName];
-    if (apiVariables && apiVariables.length > 0) {
+    if (Array.isArray(apiVariables) && apiVariables.length > 0) {
       return apiVariables;
     }
 
@@ -329,7 +359,7 @@ export const useProviderConfiguration = ({
         setValidationError(result.error || "Validation failed");
         return false;
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Ensure minimum 500ms duration even on error
       const elapsedTime = Date.now() - startTime;
       if (elapsedTime < 500) {
@@ -337,7 +367,7 @@ export const useProviderConfiguration = ({
       }
 
       setValidationState("invalid");
-      setValidationError(error?.message || "Validation failed");
+      setValidationError(getAxiosErrorMessage(error, "Validation failed"));
       return false;
     }
   }, [selectedProvider, getVariablesForValidation, validateProvider]);
@@ -403,17 +433,19 @@ export const useProviderConfiguration = ({
       );
 
       // All succeeded — defer toast and value clear until after models refetch
-      pendingSuccessTitleRef.current = `${selectedProvider.provider} Configuration Saved`;
+      hasUserMadeChangesRef.current = true;
+      pendingSuccessTitleRef.current = t("modelProviders.configurationSaved", {
+        provider: selectedProvider.provider,
+      });
       setIsFetchingAfterSave(true);
       clearValuesAfterFetchRef.current = true;
       invalidateProviderQueries();
-    } catch (error: any) {
+    } catch (error: unknown) {
       setValidationFailed(true);
       setErrorData({
-        title: "Error Saving Configuration",
+        title: t("modelProviders.errorSavingConfiguration"),
         list: [
-          error?.response?.data?.detail ||
-            "An unexpected error occurred. Please try again.",
+          getAxiosErrorMessage(error, t("modelProviders.errorUnexpected")),
         ],
       });
     } finally {
@@ -443,9 +475,11 @@ export const useProviderConfiguration = ({
 
     if (!variableName) {
       setErrorData({
-        title: "Invalid Provider",
+        title: t("modelProviders.errorInvalidProvider"),
         list: [
-          `Provider "${syncedSelectedProvider.provider}" is not supported.`,
+          t("modelProviders.errorInvalidProviderMessage", {
+            provider: syncedSelectedProvider.provider,
+          }),
         ],
       });
       return;
@@ -473,14 +507,18 @@ export const useProviderConfiguration = ({
         });
       }
 
-      setSuccessData({ title: `${syncedSelectedProvider.provider} Activated` });
+      hasUserMadeChangesRef.current = true;
+      setSuccessData({
+        title: t("modelProviders.providerActivated", {
+          provider: syncedSelectedProvider.provider,
+        }),
+      });
       invalidateProviderQueries();
-    } catch (error: any) {
+    } catch (error: unknown) {
       setErrorData({
-        title: "Error Activating Provider",
+        title: t("modelProviders.errorActivatingProvider"),
         list: [
-          error?.response?.data?.detail ||
-            "An unexpected error occurred. Please try again.",
+          getAxiosErrorMessage(error, t("modelProviders.errorUnexpected")),
         ],
       });
     }
@@ -499,34 +537,56 @@ export const useProviderConfiguration = ({
   const handleDisconnect = useCallback(async () => {
     if (!syncedSelectedProvider) return;
 
-    const variableName =
-      PROVIDER_VARIABLE_MAPPING[syncedSelectedProvider.provider];
-    if (!variableName) return;
+    // Resolve every variable key associated with this provider so
+    // multi-variable providers (e.g. OpenRouter's API key + attribution
+    // headers, IBM WatsonX's apikey + project_id + url) are fully removed.
+    // The dynamic ``providerVariables`` list comes from
+    // ``GET /api/v1/models/provider-variable-mapping`` and is the source of
+    // truth; fall back to the deprecated ``PROVIDER_VARIABLE_MAPPING`` only
+    // when the API call has not resolved yet (or the provider is missing
+    // from the dynamic mapping for some reason).
+    const variableKeys = new Set<string>();
+    for (const v of providerVariables) {
+      if (v.variable_key) variableKeys.add(v.variable_key);
+    }
+    if (variableKeys.size === 0) {
+      const staticKey =
+        PROVIDER_VARIABLE_MAPPING[syncedSelectedProvider.provider];
+      if (staticKey) variableKeys.add(staticKey);
+    }
 
-    const existingVariable = globalVariables.find(
-      (v) => v.name === variableName,
+    const variablesToDelete = globalVariables.filter((v) =>
+      variableKeys.has(v.name),
     );
-    if (!existingVariable) return;
+    if (variablesToDelete.length === 0) return;
 
     try {
-      await deleteGlobalVariable({ id: existingVariable.id });
+      // Delete in parallel — backend already cleans up per-provider enabled
+      // and disabled model lists on the primary credential delete, so order
+      // does not matter.
+      await Promise.all(
+        variablesToDelete.map((v) => deleteGlobalVariable({ id: v.id })),
+      );
 
+      hasUserMadeChangesRef.current = true;
       setSuccessData({
-        title: `${syncedSelectedProvider.provider} Disconnected`,
+        title: t("modelProviders.providerDisconnected", {
+          provider: syncedSelectedProvider.provider,
+        }),
       });
       setIsFetchingAfterDisconnect(true);
       invalidateProviderQueries();
-    } catch (error: any) {
+    } catch (error: unknown) {
       setErrorData({
-        title: "Error Disconnecting Provider",
+        title: t("modelProviders.errorDisconnectingProvider"),
         list: [
-          error?.response?.data?.detail ||
-            "An unexpected error occurred. Please try again.",
+          getAxiosErrorMessage(error, t("modelProviders.errorUnexpected")),
         ],
       });
     }
   }, [
     syncedSelectedProvider,
+    providerVariables,
     globalVariables,
     deleteGlobalVariable,
     setSuccessData,
@@ -534,94 +594,18 @@ export const useProviderConfiguration = ({
     invalidateProviderQueries,
   ]);
 
-  const pendingModelToggles = useRef<Record<string, boolean>>({});
-  const fallbackModelData = useRef<EnabledModelsResponse | undefined>(
-    undefined,
-  );
-
-  const flushModelToggles = useDebounce(() => {
-    if (!syncedSelectedProvider?.provider) return;
-    const providerName = syncedSelectedProvider.provider;
-
-    const updates = Object.entries(pendingModelToggles.current).map(
-      ([modelName, enabled]) => ({
-        provider: providerName,
-        model_id: modelName,
-        enabled,
-      }),
-    );
-
-    if (updates.length === 0) return;
-
-    // Capture the fallback data
-    const previousData = fallbackModelData.current;
-
-    // Clear buffer
-    pendingModelToggles.current = {};
-    fallbackModelData.current = undefined;
-
-    updateEnabledModels(
-      { updates },
-      {
-        onError: (error: any) => {
-          if (previousData) {
-            queryClient.setQueryData(["useGetEnabledModels"], previousData);
-          }
-          const errorMessage =
-            error?.response?.data?.detail ||
-            error?.message ||
-            "Failed to update model status";
-          setErrorData({
-            title: "Error updating model status",
-            list: [errorMessage],
-          });
-        },
-        onSettled: () => {
-          queryClient.invalidateQueries({
-            queryKey: ["useGetEnabledModels"],
-          });
-          queryClient.invalidateQueries({
-            queryKey: ["useGetModelProviders"],
-          });
-        },
-      },
-    );
-  }, 1000);
+  const { handleModelToggle: queueModelToggle, flushPendingChanges } =
+    useModelToggleQueue({
+      providerName: syncedSelectedProvider?.provider,
+    });
 
   const handleModelToggle = useCallback(
     (modelName: string, enabled: boolean) => {
       if (!syncedSelectedProvider?.provider) return;
-
-      const providerName = syncedSelectedProvider.provider;
-
-      if (Object.keys(pendingModelToggles.current).length === 0) {
-        fallbackModelData.current =
-          queryClient.getQueryData<EnabledModelsResponse>([
-            "useGetEnabledModels",
-          ]);
-      }
-
-      queryClient.setQueryData<EnabledModelsResponse>(
-        ["useGetEnabledModels"],
-        (old) => {
-          if (!old) return old;
-          return {
-            ...old,
-            enabled_models: {
-              ...old.enabled_models,
-              [providerName]: {
-                ...old.enabled_models[providerName],
-                [modelName]: enabled,
-              },
-            },
-          };
-        },
-      );
-
-      pendingModelToggles.current[modelName] = enabled;
-      flushModelToggles();
+      hasUserMadeChangesRef.current = true;
+      queueModelToggle(modelName, enabled);
     },
-    [syncedSelectedProvider, queryClient, flushModelToggles],
+    [syncedSelectedProvider, queueModelToggle],
   );
 
   return {
@@ -642,6 +626,8 @@ export const useProviderConfiguration = ({
     handleActivateProvider,
     validateCredentials,
     handleModelToggle,
+    flushPendingChanges,
+    hasUserMadeChanges,
 
     // Helpers
     isVariableConfigured,

@@ -9,6 +9,7 @@
   "files": {
     "ignoreUnknown": false
   },
+  "plugins": ["./biome-plugins/no-hardcoded-tailwind-palette.grit"],
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
@@ -45,6 +46,8 @@
         "noUnreachable": "error",
         "noUnreachableSuper": "error",
         "noUnsafeFinally": "error",
+        "noUnusedImports": "error",
+
         "noUnusedLabels": "error",
         "noUnusedPrivateClassMembers": "error",
         "noUnusedVariables": "warn",
@@ -71,6 +74,7 @@
         "noDuplicateCase": "error",
         "noDuplicateClassMembers": "error",
         "noDuplicateElseIf": "error",
+        "noDuplicateAtImportRules": "error",
         "noDuplicateObjectKeys": "error",
         "noDuplicateParameters": "error",
         "noExplicitAny": "error",

@@ -2672,7 +2672,7 @@
                 "trace_as_input": true,
                 "trace_as_metadata": true,
                 "type": "str",
-                "value": "Role: You are a helpful expert on Primeagent. You help users discover, compare, and use templates and components; explain how flows work; and give step-by-step guidance to assemble, debug, and optimize Primeagent graphs.\nUse Search template to search for template details\nUse Search components to serach for component details\n\nFor replying any flow or component suggestions use tools to know ground the names of actual components and flows.\n\nPrimeagent Github is : khulnasoft-bot/primeagent/"
+                "value": "Role: You are a helpful expert on Primeagent. You help users discover, compare, and use templates and components; explain how flows work; and give step-by-step guidance to assemble, debug, and optimize Primeagent graphs.\nUse Search template to search for template details\nUse Search components to serach for component details\n\nFor replying any flow or component suggestions use tools to know ground the names of actual components and flows.\n\nPrimeagent Github is : khulnasoft/primeagent/"
               },
               "temperature": {
                 "_input_type": "SliderInput",

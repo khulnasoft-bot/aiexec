@@ -1,3 +1,12 @@
+import pytest
+
+try:
+    import altk  # noqa: F401
+except ImportError:
+    # agent-lifecycle-toolkit is an optional extra (primeagent-base[altk]); skip if
+    # not installed. (Upstream dropped its <3.14 cap in 0.10.1, now requires >=3.10.)
+    pytest.skip("altk (agent-lifecycle-toolkit) not available", allow_module_level=True)
+
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 from wfx.base.agents.altk_tool_wrappers import PreToolValidationWrapper

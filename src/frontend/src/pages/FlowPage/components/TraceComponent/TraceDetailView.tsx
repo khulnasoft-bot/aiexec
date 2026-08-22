@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import IconComponent from "@/components/common/genericIconComponent";
-import { Badge } from "@/components/ui/badge";
+import { useTranslation } from "react-i18next";
 import Loading from "@/components/ui/loading";
 import { useGetTraceQuery } from "@/controllers/API/queries/traces";
 import { SpanDetail } from "./SpanDetail";
 import { SpanTree } from "./SpanTree";
-import { formatTotalLatency } from "./traceViewHelpers";
 import { Span, TraceDetailViewProps } from "./types";
 
 /**
@@ -13,6 +11,7 @@ import { Span, TraceDetailViewProps } from "./types";
  * Matches the "Trace Detail" layout (header + span list + span details).
  */
 export function TraceDetailView({ traceId, flowName }: TraceDetailViewProps) {
+  const { t } = useTranslation();
   const [selectedSpan, setSelectedSpan] = useState<Span | null>(null);
 
   const { data: trace, isLoading } = useGetTraceQuery(
@@ -28,12 +27,7 @@ export function TraceDetailView({ traceId, flowName }: TraceDetailViewProps) {
     if (!trace) return null;
 
     const status = trace.status;
-    const name =
-      status === "ok"
-        ? "Successful Run"
-        : status === "error"
-          ? "Failed Run"
-          : "Run Summary";
+    const name = trace.name || flowName || "Run Summary";
 
     return {
       id: trace.id,
@@ -78,7 +72,7 @@ export function TraceDetailView({ traceId, flowName }: TraceDetailViewProps) {
         className="flex h-full items-center justify-center text-sm text-muted-foreground"
         data-testid="trace-detail-view-empty"
       >
-        No trace available for this run.
+        {t("trace.noTraceAvailable")}
       </div>
     );
   }
@@ -91,7 +85,7 @@ export function TraceDetailView({ traceId, flowName }: TraceDetailViewProps) {
       >
         <div className="flex flex-col items-center gap-2 text-muted-foreground">
           <Loading size={32} className="text-primary" />
-          <span className="text-sm">Loading trace...</span>
+          <span className="text-sm">{t("trace.loadingTrace")}</span>
         </div>
       </div>
     );
@@ -103,7 +97,7 @@ export function TraceDetailView({ traceId, flowName }: TraceDetailViewProps) {
         className="flex h-full items-center justify-center text-sm text-muted-foreground"
         data-testid="trace-detail-view-error"
       >
-        Failed to load trace details.
+        {t("trace.failedToLoad")}
       </div>
     );
   }
@@ -118,42 +112,17 @@ export function TraceDetailView({ traceId, flowName }: TraceDetailViewProps) {
       <div className="border-b border-border px-4 py-3 pr-12">
         <div className="flex flex-nowrap items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap">
-            <span className="shrink-0 text-sm font-medium">Trace Details</span>
-            <span className="shrink-0 text-sm text-muted-foreground">—</span>
-            <span className="min-w-0 truncate text-sm text-muted-foreground">
-              {headerTitle}
+            <span className="shrink-0 text-sm font-medium">
+              {t("trace.traceDetails")}
             </span>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-3 whitespace-nowrap">
-            <Badge
-              variant="outline"
-              size="sm"
-              className="max-w-[280px] truncate font-mono text-xs"
-              title={trace.id}
-            >
-              <IconComponent name="Hash" className="mr-1 h-3 w-3" />
-              {trace.id}
-            </Badge>
-
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <IconComponent name="Clock" className="h-3 w-3" />
-                {formatTotalLatency(trace.totalLatencyMs)}
-              </span>
-              {trace.totalTokens > 0 && (
-                <span className="flex items-center gap-1">
-                  <IconComponent name="Coins" className="h-3 w-3" />
-                  {trace.totalTokens.toLocaleString()}
-                </span>
-              )}
-            </div>
+            <span className="shrink-0 text-sm text-muted-foreground">—</span>
+            <span className="shrink-0 text-sm font-medium">{trace.id}</span>
           </div>
         </div>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        <div className="w-[320px] min-w-[280px] overflow-y-auto border-r border-border p-2">
+        <div className="w-[380px] min-w-[320px] overflow-y-auto border-r border-border p-2">
           <SpanTree
             spans={treeSpans}
             selectedSpanId={selectedSpan?.id ?? null}

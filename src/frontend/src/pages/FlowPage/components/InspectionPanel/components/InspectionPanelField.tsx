@@ -1,26 +1,21 @@
 import { useCallback, useMemo } from "react";
-import { AssistantButton } from "@/components/common/assistant";
+import { useTranslation } from "react-i18next";
+import NodeInputInfo from "@/CustomNodes/GenericNode/components/NodeInputInfo";
+import useHandleOnNewValue from "@/CustomNodes/hooks/use-handle-new-value";
+import useHandleNodeClass from "@/CustomNodes/hooks/use-handle-node-class";
 import IconComponent from "@/components/common/genericIconComponent";
 import ShadTooltip from "@/components/common/shadTooltipComponent";
+import { FLEX_VIEW_TYPES, ICON_STROKE_WIDTH } from "@/constants/constants";
 import {
   CustomParameterComponent,
   CustomParameterLabel,
   getCustomParameterTitle,
 } from "@/customization/components/custom-parameter";
-import { PRIMEAGENT_AGENTIC_EXPERIENCE } from "@/customization/feature-flags";
 import { useIsAutoLogin } from "@/hooks/use-is-auto-login";
 import useAuthStore from "@/stores/authStore";
 import useFlowStore from "@/stores/flowStore";
 import type { NodeInputFieldComponentType } from "@/types/components";
 import { cn } from "@/utils/utils";
-import {
-  DEFAULT_TOOLSET_PLACEHOLDER,
-  FLEX_VIEW_TYPES,
-  ICON_STROKE_WIDTH,
-} from "@/constants/constants";
-import useHandleNodeClass from "@/CustomNodes/hooks/use-handle-node-class";
-import useHandleOnNewValue from "@/CustomNodes/hooks/use-handle-new-value";
-import NodeInputInfo from "@/CustomNodes/GenericNode/components/NodeInputInfo";
 
 interface InspectionPanelFieldProps
   extends Omit<
@@ -47,6 +42,7 @@ export default function InspectionPanelField({
   proxy,
   showAdvanced = false,
 }: InspectionPanelFieldProps) {
+  const { t } = useTranslation();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isAutoLogin = useIsAutoLogin();
   const shouldDisplayApiKey = isAuthenticated && !isAutoLogin;
@@ -139,7 +135,7 @@ export default function InspectionPanelField({
                 </ShadTooltip>
               )}
               {showAdvanced && (
-                <ShadTooltip content="Add to canvas">
+                <ShadTooltip content={t("node.addToCanvas")}>
                   <button
                     className="ml-1 cursor-pointer text-placeholder hover:text-foreground"
                     onClick={handleToggleVisibility}
@@ -154,15 +150,6 @@ export default function InspectionPanelField({
                 </ShadTooltip>
               )}
             </div>
-            {PRIMEAGENT_AGENTIC_EXPERIENCE &&
-              data.node?.template[name]?.ai_enabled && (
-                <AssistantButton
-                  compData={id}
-                  handleOnNewValue={handleOnNewValue}
-                  inputValue={data.node?.template[name]?.value}
-                  type="field"
-                />
-              )}
           </div>
           <CustomParameterLabel
             name={name}
@@ -187,7 +174,7 @@ export default function InspectionPanelField({
             inspectionPanel={true}
             placeholder={
               isToolMode
-                ? DEFAULT_TOOLSET_PLACEHOLDER
+                ? t("input.toolsetPlaceholder")
                 : data.node?.template[name].placeholder
             }
             isToolMode={isToolMode}

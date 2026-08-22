@@ -7,7 +7,7 @@
 ################################
 
 # Use an Alpine-based Python image with uv pre-installed
-FROM ghcr.io/astral-sh/uv:python3.12-alpine AS builder
+FROM ghcr.io/astral-sh/uv:python3.13-alpine AS builder
 
 # Install build dependencies needed for some Python packages on Alpine
 RUN apk add --no-cache build-base libaio-dev linux-headers
@@ -24,9 +24,11 @@ ENV UV_LINK_MODE=copy
 # Workspace root metadata + lockfile
 COPY pyproject.toml uv.lock ./
 
-# Member's pyproject so uv knows about 'wfx' (no source yet, better cache)
+# Member pyproject files so uv knows about workspace packages (no source yet, better cache)
 COPY src/wfx/pyproject.toml /app/src/wfx/pyproject.toml
 COPY src/wfx/README.md /app/src/wfx/README.md
+COPY src/sdk/pyproject.toml /app/src/sdk/pyproject.toml
+COPY src/sdk/README.md /app/src/sdk/README.md
 
 # Create the venv and install *only* what wfx needs (no dev)
 # We expect some packages to be built from source, so we mount the cache
@@ -35,6 +37,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # --- Now copy the source (doesn't bust the deps layer) ---
 COPY src/wfx/src /app/src/wfx/src
+COPY src/sdk/src /app/src/sdk/src
 
 # Install the WFX package into the virtual environment (non-editable)
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -44,7 +47,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # RUNTIME
 # Setup user, utilities and copy the virtual environment only
 ################################
-FROM python:3.12-alpine AS runtime
+FROM python:3.14-alpine AS runtime
 
 # Create a non-root user
 # -D: Don't assign a password
@@ -63,8 +66,8 @@ ENV PATH="/app/.venv/bin:$PATH"
 LABEL org.opencontainers.image.title=wfx
 LABEL org.opencontainers.image.authors=['Primeagent']
 LABEL org.opencontainers.image.licenses=MIT
-LABEL org.opencontainers.image.url=https://github.com/khulnasoft-bot/primeagent
-LABEL org.opencontainers.image.source=https://github.com/khulnasoft-bot/primeagent
+LABEL org.opencontainers.image.url=https://github.com/khulnasoft/primeagent
+LABEL org.opencontainers.image.source=https://github.com/khulnasoft/primeagent
 LABEL org.opencontainers.image.description="WFX - Primeagent Executor CLI Tool"
 
 USER wfx

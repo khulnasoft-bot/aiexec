@@ -14,11 +14,10 @@ export default function getWidgetCode({
 }: GetCodeType): string {
   const source = copy
     ? `<script
-  src="https://cdn.jsdelivr.net/gh/logspace-ai/primeagent-embedded-chat@v1.0.7/dist/build/static/js/bundle.min.js">
+  src="https://cdn.jsdelivr.net/gh/khulnasoft/primeagent-embedded-chat@v1.0.8/dist/build/static/js/bundle.min.js">
 </script>`
     : `<script
-  src="https://cdn.jsdelivr.net/gh/logspace-ai/primeagent-embedded-chat@v1.0.7/dist/
-build/static/js/bundle.min.js">
+  src="https://cdn.jsdelivr.net/gh/khulnasoft/primeagent-embedded-chat@v1.0.8/dist/build/static/js/bundle.min.js">
 </script>`;
 
   const { protocol, host } = customGetHostProtocol();

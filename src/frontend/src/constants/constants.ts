@@ -741,7 +741,7 @@ export const ZERO_NOTIFICATIONS = "No new notifications";
 export const SUCCESS_BUILD = "Built successfully ✨";
 
 export const ALERT_SAVE_WITH_API =
-  "Caution: Unchecking this box only removes API keys from fields specifically designated for API keys.";
+  "⚠️ Caution: Exporting this flow may expose sensitive credentials.";
 
 export const SAVE_WITH_API_CHECKBOX = "Save with my API keys";
 export const EDIT_TEXT_MODAL_TITLE = "Edit Text";
@@ -808,6 +808,10 @@ export const BUNDLES_SIDEBAR_FOLDER_NAMES = [
   "cassandra",
   "FAISS",
   "pgvector",
+  "codeagents",
+  "Code Agents",
+  "files_ingestion",
+  "File Processing",
 ];
 
 export const AUTHORIZED_DUPLICATE_REQUESTS = [
@@ -846,13 +850,9 @@ export const MAX_BATCH_SIZE = 50;
 export const MODAL_CLASSES =
   "nopan nodelete nodrag  noflow fixed inset-0 bottom-0 left-0 right-0 top-0 z-50 overflow-auto bg-black/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0";
 
-export const ALLOWED_IMAGE_INPUT_EXTENSIONS = ["png", "jpg", "jpeg"];
+export * from "./file-upload-constants";
 
 export const componentsToIgnoreUpdate = ["CustomComponent"];
-
-export const FS_ERROR_TEXT =
-  "Please ensure your file has one of the following extensions:";
-export const SN_ERROR_TEXT = ALLOWED_IMAGE_INPUT_EXTENSIONS.join(", ");
 
 export const ERROR_UPDATING_COMPONENT =
   "An unexpected error occurred while updating the Component. Please try again.";
@@ -897,8 +897,16 @@ export const DRAG_EVENTS_CUSTOM_TYPESS = {
 export const NOTE_NODE_MIN_WIDTH = 280;
 export const NOTE_NODE_MIN_HEIGHT = 140;
 export const DEFAULT_NOTE_SIZE = 324;
+export const NOTE_PLACEMENT_CURSOR_OFFSET = 20;
 export const CHAT_INPUT_MIN_HEIGHT = 24;
 export const CHAT_INPUT_MAX_HEIGHT = 200;
+
+/**
+ * Collision padding (px) reserved at the bottom of the canvas viewport for
+ * node popovers (dropdowns) when the build status / error notification panel
+ * is visible. Keeps Radix popovers from opening over the panel.
+ */
+export const BUILD_PANEL_COLLISION_PADDING_PX = 160;
 
 export const COLOR_OPTIONS = {
   amber: "hsl(var(--note-amber))",
@@ -994,14 +1002,13 @@ export const DEFAULT_POLLING_INTERVAL = 5000;
 export const DEFAULT_TIMEOUT = 30000;
 export const DEFAULT_FILE_PICKER_TIMEOUT = 60000;
 export const DISCORD_URL = "https://discord.com/invite/EqksyE2EX9";
-export const GITHUB_URL = "https://github.com/khulnasoft-bot/primeagent";
+export const GITHUB_URL = "https://github.com/khulnasoft/primeagent";
 export const TWITTER_URL = "https://x.com/primeagent_ai";
 export const DOCS_URL = "https://docs.prime.khulnasoft.com";
 export const DATASTAX_DOCS_URL =
   "https://docs.datastax.com/en/primeagent/index.html";
 export const DESKTOP_URL = "https://www.prime.khulnasoft.com/desktop";
-export const BUG_REPORT_URL =
-  "https://github.com/khulnasoft-bot/primeagent/issues";
+export const BUG_REPORT_URL = "https://github.com/khulnasoft/primeagent/issues";
 
 export const UUID_PARSING_ERROR = "uuid_parsing";
 

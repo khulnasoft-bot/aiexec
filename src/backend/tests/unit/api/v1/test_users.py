@@ -22,6 +22,101 @@ async def test_add_user_public_signup(client: AsyncClient):
     assert result["is_superuser"] is False, "New users should not be superusers"
 
 
+async def test_add_user_signup_refused_when_disabled(client: AsyncClient):
+    """Public registration must be refused (403) when ENABLE_SIGNUP is False."""
+    from primeagent.services.deps import get_settings_service
+
+    auth_settings = get_settings_service().auth_settings
+    original_signup = auth_settings.ENABLE_SIGNUP
+    original_auto_login = auth_settings.AUTO_LOGIN
+    # Pin AUTO_LOGIN to a permissive value so the 403 can only come from ENABLE_SIGNUP=False.
+    auth_settings.AUTO_LOGIN = False
+    auth_settings.ENABLE_SIGNUP = False
+    try:
+        response = await client.post("api/v1/users/", json={"username": "signupblocked", "password": "newpassword123"})
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+    finally:
+        auth_settings.ENABLE_SIGNUP = original_signup
+        auth_settings.AUTO_LOGIN = original_auto_login
+
+
+async def test_add_user_signup_refused_when_auto_login(client: AsyncClient):
+    """Public registration must be refused (403) when AUTO_LOGIN is enabled."""
+    from primeagent.services.deps import get_settings_service
+
+    auth_settings = get_settings_service().auth_settings
+    original_auto_login = auth_settings.AUTO_LOGIN
+    original_signup = auth_settings.ENABLE_SIGNUP
+    # Pin ENABLE_SIGNUP to a permissive value so the 403 can only come from AUTO_LOGIN=True.
+    auth_settings.ENABLE_SIGNUP = True
+    auth_settings.AUTO_LOGIN = True
+    try:
+        response = await client.post(
+            "api/v1/users/", json={"username": "autologinblocked", "password": "newpassword123"}
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+    finally:
+        auth_settings.AUTO_LOGIN = original_auto_login
+        auth_settings.ENABLE_SIGNUP = original_signup
+
+
+async def test_add_user_superuser_succeeds_when_signup_disabled(client: AsyncClient, logged_in_headers_super_user):
+    """An authenticated superuser can still create users when public signup is disabled.
+
+    Disabling public sign up must only block the anonymous path; it must not break the
+    admin "add user" flow (AdminPage -> useAddUser -> POST /api/v1/users/).
+    """
+    from primeagent.services.deps import get_settings_service
+
+    auth_settings = get_settings_service().auth_settings
+    original_signup = auth_settings.ENABLE_SIGNUP
+    original_auto_login = auth_settings.AUTO_LOGIN
+    auth_settings.AUTO_LOGIN = False
+    auth_settings.ENABLE_SIGNUP = False
+    try:
+        # Superuser-authenticated request is allowed through despite signup being disabled.
+        admin_response = await client.post(
+            "api/v1/users/",
+            json={"username": "adminmade", "password": "newpassword123"},
+            headers=logged_in_headers_super_user,
+        )
+        assert admin_response.status_code == status.HTTP_201_CREATED
+
+        # The anonymous path is still refused. Clear the cookie jar first: the shared
+        # AsyncClient persists the superuser's access_token_lf cookie set by the login
+        # fixture, which would otherwise authenticate this "anonymous" request too.
+        client.cookies.clear()
+        anon_response = await client.post("api/v1/users/", json={"username": "anonmade", "password": "newpassword123"})
+        assert anon_response.status_code == status.HTTP_403_FORBIDDEN
+    finally:
+        auth_settings.ENABLE_SIGNUP = original_signup
+        auth_settings.AUTO_LOGIN = original_auto_login
+
+
+async def test_add_user_non_superuser_refused_when_signup_disabled(client: AsyncClient, logged_in_headers):
+    """A regular authenticated (non-superuser) user cannot create users when signup is disabled.
+
+    Only superusers may bypass the gate; being merely authenticated is not enough.
+    """
+    from primeagent.services.deps import get_settings_service
+
+    auth_settings = get_settings_service().auth_settings
+    original_signup = auth_settings.ENABLE_SIGNUP
+    original_auto_login = auth_settings.AUTO_LOGIN
+    auth_settings.AUTO_LOGIN = False
+    auth_settings.ENABLE_SIGNUP = False
+    try:
+        response = await client.post(
+            "api/v1/users/",
+            json={"username": "regularmade", "password": "newpassword123"},
+            headers=logged_in_headers,
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+    finally:
+        auth_settings.ENABLE_SIGNUP = original_signup
+        auth_settings.AUTO_LOGIN = original_auto_login
+
+
 async def test_add_user_duplicate_username(client: AsyncClient):
     """Test that duplicate usernames are rejected."""
     basic_case = {"username": "duplicateuser", "password": "password123"}
@@ -159,6 +254,76 @@ async def test_patch_user_self_deactivation_forbidden_superuser(
 
     assert response.status_code == status.HTTP_403_FORBIDDEN
     assert "can't deactivate your own user account" in result["detail"]
+
+
+async def test_read_all_users_search(client: AsyncClient, logged_in_headers_super_user):
+    """Test that the search parameter filters users by username across all pages."""
+    # Create several users with distinct usernames
+    usernames = ["alice_search", "bob_search", "charlie_search"]
+    created_ids = []
+    for username in usernames:
+        response = await client.post(
+            "api/v1/users/",
+            json={"username": username, "password": "password123"},
+            headers=logged_in_headers_super_user,
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+        created_ids.append(response.json()["id"])
+
+    # Search for "alice" — should return exactly one match
+    response = await client.get(
+        "api/v1/users/?search=alice",
+        headers=logged_in_headers_super_user,
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert result["total_count"] == 1
+    assert result["users"][0]["username"] == "alice_search"
+
+    # Search for "_search" — should match all three created users
+    response = await client.get(
+        "api/v1/users/?search=_search",
+        headers=logged_in_headers_super_user,
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert result["total_count"] == 3
+    returned_usernames = {u["username"] for u in result["users"]}
+    assert returned_usernames == set(usernames)
+
+    # Search for a non-existent username — should return zero results
+    response = await client.get(
+        "api/v1/users/?search=nonexistentuser",
+        headers=logged_in_headers_super_user,
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert result["total_count"] == 0
+    assert result["users"] == []
+
+    # Search is case-insensitive
+    response = await client.get(
+        "api/v1/users/?search=ALICE",
+        headers=logged_in_headers_super_user,
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert result["total_count"] == 1
+    assert result["users"][0]["username"] == "alice_search"
+
+    # Search combined with pagination: limit=1 should return 1 user but total_count=3
+    response = await client.get(
+        "api/v1/users/?search=_search&limit=1",
+        headers=logged_in_headers_super_user,
+    )
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()
+    assert result["total_count"] == 3
+    assert len(result["users"]) == 1
+
+    # Clean up
+    for user_id in created_ids:
+        await client.delete(f"api/v1/users/{user_id}", headers=logged_in_headers_super_user)
 
 
 async def test_patch_user_deactivate_other_user_allowed(client: AsyncClient, logged_in_headers_super_user):

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import { useThinkingDurationStore } from "../hooks/use-thinking-duration";
 import { formatTime } from "../utils/format";
@@ -14,6 +15,7 @@ export default function ThinkingMessage({
   isThinking,
   duration,
 }: ThinkingMessageProps) {
+  const { t } = useTranslation();
   const { startTime } = useThinkingDurationStore();
   const [elapsedTime, setElapsedTime] = useState(0);
 
@@ -43,11 +45,13 @@ export default function ThinkingMessage({
         {!isThinking && (
           <ForwardedIconComponent
             name="Check"
-            className="h-4 w-4 text-emerald-400"
+            className="h-4 w-4 text-accent-emerald-foreground"
           />
         )}
         <p className="m-0 w-full flex justify-between">
-          <span>{isThinking ? "Running..." : "Finished in"}</span>
+          <span>
+            {isThinking ? t("chat.runningStatus") : t("chat.finishedIn")}
+          </span>
           <span>{formatTime(displayTime)}</span>
         </p>
       </div>

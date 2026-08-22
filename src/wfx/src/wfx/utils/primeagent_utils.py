@@ -50,3 +50,22 @@ def has_primeagent_memory():
     _PrimeagentModule.set_available(is_primeagent_available)
 
     return is_primeagent_available
+
+
+def has_primeagent_db_backend() -> bool:
+    """Return True iff primeagent-backed memory calls have a real DB to hit.
+
+    Requires both primeagent to be importable AND the registered database
+    service to be a non-noop implementation. Evaluated on every call because
+    the database service is typically registered *after* this module is first
+    imported (e.g., from Component class definitions loaded before graph setup).
+    """
+    if not has_primeagent_memory():
+        return False
+    from wfx.services.database.service import NoopDatabaseService
+    from wfx.services.deps import get_db_service
+
+    try:
+        return not isinstance(get_db_service(), NoopDatabaseService)
+    except Exception:  # noqa: BLE001
+        return False

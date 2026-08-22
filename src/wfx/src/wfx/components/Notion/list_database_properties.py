@@ -1,5 +1,5 @@
 import requests
-from langchain.tools import StructuredTool
+from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
 from wfx.base.langchain_utilities.model import LCToolComponent

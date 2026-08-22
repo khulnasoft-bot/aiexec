@@ -33,7 +33,7 @@ class CalculatorComponent(Component):
     ]
 
     outputs = [
-        Output(display_name="Data", name="result", type_=Data, method="evaluate_expression"),
+        Output(display_name="JSON", name="result", type_=Data, method="evaluate_expression"),
     ]
 
     def _eval_expr(self, node: ast.AST) -> float:
@@ -42,11 +42,6 @@ class CalculatorComponent(Component):
             if isinstance(node.value, int | float):
                 return float(node.value)
             error_msg = f"Unsupported constant type: {type(node.value).__name__}"
-            raise TypeError(error_msg)
-        if isinstance(node, ast.Num):  # For backwards compatibility
-            if isinstance(node.n, int | float):
-                return float(node.n)
-            error_msg = f"Unsupported number type: {type(node.n).__name__}"
             raise TypeError(error_msg)
 
         if isinstance(node, ast.BinOp):

@@ -1,4 +1,4 @@
-from langchain.chains import LLMCheckerChain
+from langchain_classic.chains import LLMCheckerChain
 
 from wfx.base.chains.model import LCChainComponent
 from wfx.inputs.inputs import HandleInput, MultilineInput

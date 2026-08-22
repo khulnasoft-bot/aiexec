@@ -1,11 +1,12 @@
 import { useCallback } from "react";
-import IconComponent from "@/components/common/genericIconComponent";
+import { useTranslation } from "react-i18next";
 import useHandleOnNewValue from "@/CustomNodes/hooks/use-handle-new-value";
-import type { NodeDataType } from "@/types/flow";
-import { cn } from "@/utils/utils";
-import useFlowStore from "@/stores/flowStore";
-import { scapeJSONParse } from "@/utils/reactflowUtils";
+import IconComponent from "@/components/common/genericIconComponent";
 import ShadTooltip from "@/components/common/shadTooltipComponent";
+import useFlowStore from "@/stores/flowStore";
+import type { NodeDataType } from "@/types/flow";
+import { scapeJSONParse } from "@/utils/reactflowUtils";
+import { cn } from "@/utils/utils";
 
 interface InspectionPanelEditFieldProps {
   data: NodeDataType;
@@ -22,6 +23,7 @@ export default function InspectionPanelEditField({
   description,
   isOnCanvas,
 }: InspectionPanelEditFieldProps) {
+  const { t } = useTranslation();
   const { handleOnNewValue } = useHandleOnNewValue({
     node: data.node!,
     nodeId: data.id,
@@ -63,10 +65,10 @@ export default function InspectionPanelEditField({
       <ShadTooltip
         content={
           isConnected
-            ? "Cannot change visibility of connected handles"
+            ? t("inspection.cannotChangeVisibility")
             : isOnCanvas
-              ? "Hide"
-              : "Show"
+              ? t("common.hide")
+              : t("common.show")
         }
         avoidCollisions
       >

@@ -2,7 +2,6 @@ import json
 from typing import Any
 from urllib.parse import urljoin
 
-import httpx
 from langchain_core.tools import StructuredTool, ToolException
 from pydantic import BaseModel
 from pydantic.v1 import Field
@@ -13,6 +12,7 @@ from wfx.inputs.inputs import IntInput, MultilineInput, NestedDictInput, SecretS
 from wfx.io import Output
 from wfx.schema.data import Data
 from wfx.schema.dataframe import DataFrame
+from wfx.utils.ssrf_httpx import ssrf_safe_httpx_post
 
 
 class GleanSearchAPISchema(BaseModel):
@@ -82,7 +82,7 @@ class GleanAPIWrapper(BaseModel):
     def _search_api_results(self, query: str, **kwargs: Any) -> list[dict[str, Any]]:
         request_details = self._prepare_request(query, **kwargs)
 
-        response = httpx.post(
+        response = ssrf_safe_httpx_post(
             request_details["url"],
             json=request_details["payload"],
             headers=request_details["headers"],
@@ -105,7 +105,7 @@ class GleanSearchAPIComponent(LCToolComponent):
     icon: str = "Glean"
 
     outputs = [
-        Output(display_name="DataFrame", name="dataframe", method="fetch_content_dataframe"),
+        Output(display_name="Table", name="dataframe", method="fetch_content_dataframe"),
     ]
 
     inputs = [

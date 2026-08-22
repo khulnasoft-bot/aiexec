@@ -3,6 +3,14 @@ from typing import Any
 from uuid import uuid4
 
 import pytest
+
+try:
+    import altk  # noqa: F401
+except ImportError:
+    # agent-lifecycle-toolkit is an optional extra (primeagent-base[altk]); skip if
+    # not installed. (Upstream dropped its <3.14 cap in 0.10.1, now requires >=3.10.)
+    pytest.skip("altk (agent-lifecycle-toolkit) not available", allow_module_level=True)
+
 from primeagent.custom import Component
 from wfx.base.models.anthropic_constants import ANTHROPIC_MODELS
 from wfx.components.altk.altk_agent import ALTKAgentComponent
@@ -35,7 +43,6 @@ class TestAgentComponent(ComponentTestBaseWithoutClient):
         return {
             "_type": "Agent",
             "add_current_date_tool": True,
-            "agent_description": "A helpful agent",
             "agent_llm": MockLanguageModel(),
             "handle_parsing_errors": True,
             "input_value": "",

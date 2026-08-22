@@ -35,16 +35,19 @@ mod = _load_module()
 # ---------------------------------------------------------------------------
 
 
-class TestLfxFloorSpec:
+class TestWfxFloorSpec:
+    # The .dev0 floor is load-bearing: nightlies are canonical X.Y.0.devN
+    # pre-releases, which PEP 440 sorts BELOW X.Y.0, so a plain >=X.Y.0
+    # floor makes the branch's own nightly wfx unresolvable.
     @pytest.mark.parametrize(
         ("version", "expected"),
         [
-            ("1.10.0", "wfx>=1.10.0,<2.0.0"),
-            ("1.10.3", "wfx>=1.10.0,<2.0.0"),  # patch within a minor -> same floor
-            ("1.11.0", "wfx>=1.11.0,<2.0.0"),
-            ("2.0.0", "wfx>=2.0.0,<3.0.0"),
-            ("v1.10.0", "wfx>=1.10.0,<2.0.0"),  # leading v tolerated
-            ("10.4.2", "wfx>=10.4.0,<11.0.0"),  # multi-digit major
+            ("1.10.0", "wfx>=1.10.0.dev0,<2.0.0"),
+            ("1.10.3", "wfx>=1.10.0.dev0,<2.0.0"),  # patch within a minor -> same floor
+            ("1.11.0", "wfx>=1.11.0.dev0,<2.0.0"),
+            ("2.0.0", "wfx>=2.0.0.dev0,<3.0.0"),
+            ("v1.10.0", "wfx>=1.10.0.dev0,<2.0.0"),  # leading v tolerated
+            ("10.4.2", "wfx>=10.4.0.dev0,<11.0.0"),  # multi-digit major
         ],
     )
     def test_floor(self, version, expected):
@@ -61,8 +64,8 @@ class TestLfxFloorSpec:
 # ---------------------------------------------------------------------------
 
 
-class TestRewriteLfxDep:
-    FLOOR = "wfx>=1.10.0,<2.0.0"
+class TestRewriteWfxDep:
+    FLOOR = "wfx>=1.10.0.dev0,<2.0.0"
 
     def test_rewrites_bare_floor(self):
         assert mod.rewrite_wfx_dep('    "wfx>=0.5.0",', self.FLOOR) == f'    "{self.FLOOR}",'
@@ -121,11 +124,11 @@ class TestSyncBundles:
     def test_sync_updates_and_reports(self, tmp_path):
         bundles = tmp_path / "bundles"
         self._make_bundle(bundles, "arxiv", "wfx>=0.5.0")
-        self._make_bundle(bundles, "ibm", "wfx>=1.10.0,<2.0.0")  # already correct
+        self._make_bundle(bundles, "ibm", "wfx>=1.10.0.dev0,<2.0.0")  # already correct
 
         results = dict(mod.sync_bundles("1.10.0", bundles))
         assert results == {"arxiv": True, "ibm": False}  # arxiv changed, ibm no-op
-        assert '"wfx>=1.10.0,<2.0.0"' in (bundles / "arxiv" / "pyproject.toml").read_text()
+        assert '"wfx>=1.10.0.dev0,<2.0.0"' in (bundles / "arxiv" / "pyproject.toml").read_text()
 
     def test_sync_idempotent(self, tmp_path):
         bundles = tmp_path / "bundles"
